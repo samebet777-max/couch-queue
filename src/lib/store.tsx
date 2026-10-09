@@ -41,6 +41,7 @@ type Store = {
   rename: (name: string) => void;
   addShow: (show: Pick<SavedShow, 'id' | 'name' | 'posterPath'>, list?: ListName) => void;
   moveShow: (id: number, list: ListName) => void;
+  setWatchers: (id: number, memberIds: string[]) => void;
   removeShow: (id: number) => void;
   setSeasonsWatched: (showId: number, seasons: number) => void;
   seasonsWatched: (showId: number, memberId: string) => number;
@@ -190,6 +191,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 addedAt: existing && !existing.removed ? existing.addedAt : now,
                 updatedAt: now,
                 removed: false,
+                // A new show is for whoever added it; they can add the other person on its page.
+                watchers: existing && !existing.removed ? existing.watchers : meId ? [meId] : undefined,
               },
             },
           };
@@ -197,6 +200,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       moveShow: (id, list) =>
         update((h) =>
           h.shows[id] ? { ...h, shows: { ...h.shows, [id]: { ...h.shows[id], list, updatedAt: Date.now() } } } : h,
+        ),
+      setWatchers: (id, memberIds) =>
+        update((h) =>
+          h.shows[id]
+            ? { ...h, shows: { ...h.shows, [id]: { ...h.shows[id], watchers: memberIds, updatedAt: Date.now() } } }
+            : h,
         ),
       removeShow: (id) =>
         update((h) =>

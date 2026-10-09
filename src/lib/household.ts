@@ -21,7 +21,14 @@ export type SavedShow = {
   addedAt: number;
   updatedAt: number;
   removed?: boolean;
+  /** Who this show is for. Missing or empty means everyone in the household. */
+  watchers?: string[];
 };
+
+/** Whether a show belongs on this member's list. */
+export function isFor(show: SavedShow, memberId: string | undefined) {
+  return !show.watchers?.length || !memberId || show.watchers.includes(memberId);
+}
 
 /** How many seasons one member has finished for one show. */
 export type Progress = { seasonsWatched: number; updatedAt: number };

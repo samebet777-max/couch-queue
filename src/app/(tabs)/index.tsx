@@ -5,13 +5,14 @@ import { ShowRow } from '@/components/show-row';
 import { Body, Chips, Heading, Notice, Screen } from '@/components/ui';
 import { Welcome } from '@/components/welcome';
 import { Colors, Spacing } from '@/constants/theme';
-import { LISTS, type ListName } from '@/lib/household';
+import { LISTS, isFor, type ListName } from '@/lib/household';
 import { useStore } from '@/lib/store';
 import { hasTmdb } from '@/lib/tmdb';
 
 export default function ShowsScreen() {
-  const { ready, household, shows, members } = useStore();
+  const { ready, household, shows, members, me } = useStore();
   const [list, setList] = useState<ListName>('watching');
+  const [scope, setScope] = useState<'mine' | 'all'>('mine');
 
   if (!ready) return <Screen>{null}</Screen>;
   if (!household) {
@@ -22,12 +23,14 @@ export default function ShowsScreen() {
     );
   }
 
-  const visible = shows.filter((s) => s.list === list);
+  const shared = members.length > 1;
+  const mineOnly = shared && scope === 'mine';
+  const visible = shows.filter((s) => s.list === list && (!mineOnly || isFor(s, me?.id)));
 
   return (
     <Screen>
       <View style={styles.top}>
-        <Heading>Our shows</Heading>
+        <Heading>{mineOnly ? 'My shows' : 'Our shows'}</Heading>
         <View style={styles.avatars}>
           {members.map((m, i) => (
             <View key={m.id} style={[styles.avatar, { backgroundColor: Colors.members[i % Colors.members.length] }, i > 0 && { marginLeft: -8 }]}>
@@ -43,6 +46,16 @@ export default function ShowsScreen() {
         </Notice>
       ) : null}
 
+      {shared ? (
+        <Chips
+          options={[
+            { key: 'mine', label: 'Mine' },
+            { key: 'all', label: 'Everyone\u2019s' },
+          ]}
+          value={scope}
+          onChange={setScope}
+        />
+      ) : null}
       <Chips options={LISTS} value={list} onChange={setList} />
 
       <View style={{ gap: Spacing.two }}>

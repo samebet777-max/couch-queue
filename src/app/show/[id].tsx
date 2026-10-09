@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Body, Button, Chips, Label, Loading, Notice, Poster } from '@/components/ui';
 import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
-import { LISTS } from '@/lib/household';
+import { LISTS, isFor } from '@/lib/household';
 import { nextSeason } from '@/lib/next-season';
 import { useStore } from '@/lib/store';
 import { imageUrl, networkLabel, pickTrailer, realSeasons, type TmdbReview } from '@/lib/tmdb';
@@ -110,6 +110,38 @@ export default function ShowScreen() {
           <View style={{ gap: Spacing.two }}>
             <Label>On our list</Label>
             <Chips options={LISTS} value={saved.list} onChange={(list) => store.moveShow(id, list)} />
+            {store.members.length > 1 ? (
+              <View style={{ gap: Spacing.two, marginTop: Spacing.three }}>
+                <Label>Who’s watching</Label>
+                <View style={styles.watchers}>
+                  {store.members.map((m, i) => {
+                    const on = isFor(saved, m.id);
+                    const color = Colors.members[i % Colors.members.length];
+                    return (
+                      <Pressable
+                        key={m.id}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: on }}
+                        onPress={() => {
+                          const current = store.members.filter((x) => isFor(saved, x.id)).map((x) => x.id);
+                          const next = on ? current.filter((x) => x !== m.id) : [...current, m.id];
+                          // Someone always has to be watching; untagging the last person does nothing.
+                          if (next.length > 0) store.setWatchers(id, next);
+                        }}
+                        style={[styles.watcher, on && { backgroundColor: color, borderColor: color }]}>
+                        <Text style={[styles.watcherText, on && { color: Colors.night }]}>
+                          {on ? '\u2713 ' : ''}
+                          {m.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Body muted style={{ fontSize: 13 }}>
+                  Shows only appear on the phones of the people ticked here.
+                </Body>
+              </View>
+            ) : null}
           </View>
         ) : (
           <Button kind="primary" title="Add to our list" onPress={() => store.addShow({ id, name: show.name, posterPath: show.poster_path })} />
@@ -146,6 +178,7 @@ export default function ShowScreen() {
             {saved ? (
               <View style={{ gap: 2 }}>
                 {store.members.map((m, i) => {
+                  if (!isFor(saved, m.id)) return null;
                   const n = store.seasonsWatched(id, m.id);
                   return (
                     <Text key={m.id} style={{ color: Colors.members[i % Colors.members.length], fontSize: 13 }}>
@@ -257,6 +290,15 @@ const styles = StyleSheet.create({
   seasonNext: { backgroundColor: 'transparent', borderColor: Colors.lamp, borderStyle: 'dashed' },
   seasonText: { fontFamily: Fonts.mono, fontWeight: '700', color: Colors.text },
   seasonEps: { fontSize: 10, color: Colors.muted },
+  watchers: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  watcher: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: Colors.line,
+  },
+  watcherText: { color: Colors.text, fontWeight: '600' },
   castItem: { width: 76, alignItems: 'center', gap: 4 },
   castName: { color: Colors.text, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   castRole: { color: Colors.muted, fontSize: 11, textAlign: 'center' },

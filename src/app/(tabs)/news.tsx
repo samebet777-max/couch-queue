@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { Body, Card, Heading, Label, Pill, Screen } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
+import { isFor } from '@/lib/household';
 import { nextSeason, type NextSeason } from '@/lib/next-season';
 import { useStore } from '@/lib/store';
 import { useShows } from '@/lib/use-tmdb';
@@ -16,8 +17,8 @@ function compare(a: NextSeason | null, b: NextSeason | null) {
 }
 
 export default function NewsScreen() {
-  const { shows } = useStore();
-  const tracked = shows.filter((s) => s.list !== 'done');
+  const { shows, me } = useStore();
+  const tracked = shows.filter((s) => s.list !== 'done' && isFor(s, me?.id));
   const details = useShows(tracked.map((s) => s.id));
 
   const items = tracked

@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import type { SavedShow } from '@/lib/household';
+import { isFor, type SavedShow } from '@/lib/household';
 import { nextSeason } from '@/lib/next-season';
 import { useStore } from '@/lib/store';
 import { networkLabel, realSeasons } from '@/lib/tmdb';
@@ -31,14 +31,16 @@ export function ShowRow({ saved }: { saved: SavedShow }) {
           {status ? <Pill tone={status.tone}>{status.label}</Pill> : null}
           {seasonCount > 0 && members.length > 0 ? (
             <View style={{ gap: 3, marginTop: 2 }}>
-              {members.map((m, i) => (
-                <ProgressBar
-                  key={m.id}
-                  initial={m.name.slice(0, 1).toUpperCase()}
-                  color={Colors.members[i % Colors.members.length]}
-                  value={seasonsWatched(saved.id, m.id) / seasonCount}
-                />
-              ))}
+              {members.map((m, i) =>
+                isFor(saved, m.id) ? (
+                  <ProgressBar
+                    key={m.id}
+                    initial={m.name.slice(0, 1).toUpperCase()}
+                    color={Colors.members[i % Colors.members.length]}
+                    value={seasonsWatched(saved.id, m.id) / seasonCount}
+                  />
+                ) : null,
+              )}
             </View>
           ) : null}
         </View>
