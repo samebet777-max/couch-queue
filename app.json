@@ -41,6 +41,12 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "backgroundColor": "#14121f"
+    "backgroundColor": "#14121f",
+    "owner": "samebet",
+    "extra": {
+      "eas": {
+        "projectId": "5c6e53a0-5304-4d8c-825f-554667243c1d"
+      }
+    }
   }
 }
