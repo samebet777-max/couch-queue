@@ -17,8 +17,9 @@ const SYNC_TEXT: Record<SyncState, string> = {
 };
 
 export default function UsScreen() {
-  const { household, me, members, rename, syncState, syncNow } = useStore();
+  const { household, me, members, rename, removeMember, syncState, syncNow } = useStore();
   const [copied, setCopied] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   if (!household) {
     return (
@@ -54,10 +55,23 @@ export default function UsScreen() {
         {members.map((m, i) => (
           <View key={m.id} style={styles.member}>
             <View style={[styles.dot, { backgroundColor: Colors.members[i % Colors.members.length] }]} />
-            <Body>
+            <Body style={{ flex: 1 }}>
               {m.name}
               {m.id === me?.id ? <Text style={{ color: Colors.muted }}>  (you)</Text> : null}
             </Body>
+            {m.id !== me?.id ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  if (confirming !== m.id) return setConfirming(m.id);
+                  removeMember(m.id);
+                  setConfirming(null);
+                }}>
+                <Text style={{ color: confirming === m.id ? Colors.end : Colors.muted, fontSize: 14 }}>
+                  {confirming === m.id ? 'Tap again to remove' : 'Remove'}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ))}
       </View>

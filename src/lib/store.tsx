@@ -42,6 +42,7 @@ type Store = {
   addShow: (show: Pick<SavedShow, 'id' | 'name' | 'posterPath'>, list?: ListName) => void;
   moveShow: (id: number, list: ListName) => void;
   setWatchers: (id: number, memberIds: string[]) => void;
+  removeMember: (memberId: string) => void;
   removeShow: (id: number) => void;
   setSeasonsWatched: (showId: number, seasons: number) => void;
   seasonsWatched: (showId: number, memberId: string) => number;
@@ -137,7 +138,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const remote = await fetchHousehold(code.trim().toUpperCase());
     if (!remote) throw new Error('No household uses that code. Check it and try again.');
     const now = Date.now();
-    const me: Member = { id: newId(), name: name.trim(), joinedAt: now, updatedAt: now };
+    // Rejoining under the same name picks up where that person left off instead of adding a second copy.
+    const existing = orderedMembers(remote).find((m) => m.name.toLowerCase() === name.trim().toLowerCase());
+    const me: Member = existing ?? { id: newId(), name: name.trim(), joinedAt: now, updatedAt: now };
     const household = { ...remote, members: { ...remote.members, [me.id]: me } };
     setSaved({ household, meId: me.id });
     setSyncState('synced');
@@ -207,6 +210,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             ? { ...h, shows: { ...h.shows, [id]: { ...h.shows[id], watchers: memberIds, updatedAt: Date.now() } } }
             : h,
         ),
+      removeMember: (memberId) =>
+        update((h, meId) => {
+          if (!h.members[memberId] || memberId === meId) return h;
+          const now = Date.now();
+          const shows = { ...h.shows };
+          for (const [key, show] of Object.entries(shows)) {
+            if (!show.watchers?.includes(memberId)) continue;
+            const watchers = show.watchers.filter((w) => w !== memberId);
+            // A show only that person watched now belongs to whoever removed them.
+            shows[key] = { ...show, watchers: watchers.length ? watchers : meId ? [meId] : [], updatedAt: now };
+          }
+          // Keep their season progress where the remover has none (usually the same person who rejoined).
+          const progress = { ...h.progress };
+          for (const [key, value] of Object.entries(h.progress)) {
+            const [showId, owner] = key.split(':');
+            const mine = meId ? progressKey(Number(showId), meId) : null;
+            if (owner === memberId && mine && !progress[mine]) progress[mine] = { ...value, updatedAt: now };
+          }
+          return {
+            ...h,
+            shows,
+            progress,
+            members: { ...h.members, [memberId]: { ...h.members[memberId], removed: true, updatedAt: now } },
+          };
+        }),
       removeShow: (id) =>
         update((h) =>
           h.shows[id]

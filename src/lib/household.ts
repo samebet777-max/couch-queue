@@ -10,7 +10,7 @@ export const LISTS: { key: ListName; label: string }[] = [
   { key: 'done', label: 'Done' },
 ];
 
-export type Member = { id: string; name: string; joinedAt: number; updatedAt: number };
+export type Member = { id: string; name: string; joinedAt: number; updatedAt: number; removed?: boolean };
 
 export type SavedShow = {
   id: number; // TMDB id
@@ -78,5 +78,7 @@ export function mergeHouseholds(local: Household, remote: Household): Household 
 
 /** Members in the order they joined, each with a stable color slot. */
 export function orderedMembers(h: Household) {
-  return Object.values(h.members).sort((a, b) => a.joinedAt - b.joinedAt);
+  return Object.values(h.members)
+    .filter((m) => !m.removed)
+    .sort((a, b) => a.joinedAt - b.joinedAt);
 }
