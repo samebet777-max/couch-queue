@@ -1,56 +1,39 @@
-# Welcome to your Expo app 👋
+# Couch Queue
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A shared TV tracker for two phones: one list of your shows, where each of you is in every season, the network or streamer, trailers, cast bios, review highlights, and what's next for every show.
 
-## Get started
+Built with Expo (React Native) and Expo Router. Show data comes from [TMDB](https://www.themoviedb.org/); the shared list syncs through [Supabase](https://supabase.com/).
 
-1. Install dependencies
+## What's in this version
 
-   ```bash
-   npm install
-   ```
+- **Our shows:** the shared list, grouped into Watching, Waiting, Want to see and Done, with a progress bar for each person.
+- **Show page:** backdrop and poster, network and years, trailer, where to watch (US), next-season status, seasons (tap the last one you finished), cast, and viewer review highlights.
+- **Star bio:** photo, birthday, hometown, biography, and their other shows.
+- **Next season:** every show you're watching or waiting on, sorted by what's coming soonest.
+- **Search:** find any show and add it to the list.
+- **Us:** your name, who's on the list, and the invite code for the other phone.
 
-2. Start the app
+Starting a new list adds Peaky Blinders, General Hospital and Star Trek: Strange New Worlds.
 
-   ```bash
-   npx expo start
-   ```
+Not yet built: phone alerts and news articles (planned for the next update).
 
-In the output, you'll find options to open the app in a
+## Setup
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+1. Install dependencies: `npm install`
+2. Copy `.env.example` to `.env.local` and fill in:
+   - `EXPO_PUBLIC_TMDB_TOKEN`: a free TMDB account, then Settings > API > "API Read Access Token".
+   - `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (optional, for sharing): create a free Supabase project, run `supabase/schema.sql` in its SQL editor, then copy the URL and anon key from Project Settings > API. Without these the list stays on one phone.
+3. Start it: `npx expo start`, then scan the QR code with the iPhone camera to open it in Expo Go.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## How sharing works
 
-## Get a fresh project
+Each household is one JSON document in Supabase, keyed by an 8-character invite code. Phones call two database functions (`get_household`, `put_household`) and never read the table directly. Every show, member and progress entry carries its own `updatedAt`, and the server keeps the newest of each, so both phones can edit at the same time. Phones sync on every change, every 30 seconds while open, and when the app comes back to the foreground.
 
-When you're ready, run:
+Anyone with the invite code can see and edit the list, so treat it like a shared password.
+
+## Checks
 
 ```bash
-npm run reset-project
+npx tsc --noEmit
+npx expo lint
 ```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
