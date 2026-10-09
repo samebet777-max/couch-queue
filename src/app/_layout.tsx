@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 
 import { Colors } from '@/constants/theme';
 import { StoreProvider, useStore } from '@/lib/store';
+import { useWebAutoUpdate } from '@/lib/web-updates';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -22,6 +23,7 @@ function HideSplashWhenReady() {
 }
 
 export default function RootLayout() {
+  useWebAutoUpdate();
   return (
     <ThemeProvider value={theme}>
       <StoreProvider>
