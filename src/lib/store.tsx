@@ -175,7 +175,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         update((h, meId) =>
           meId ? { ...h, members: { ...h.members, [meId]: { ...h.members[meId], name, updatedAt: Date.now() } } } : h,
         ),
-      addShow: (show, list = 'want') =>
+      addShow: (show, list = 'watching') =>
         update((h, meId) => {
           const existing = h.shows[show.id];
           const now = Date.now();
