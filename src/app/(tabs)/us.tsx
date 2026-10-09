@@ -2,7 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Body, Card, Heading, Label, Screen } from '@/components/ui';
+import { Body, Button, Card, Heading, Label, Screen } from '@/components/ui';
 import { Welcome } from '@/components/welcome';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useStore, type SyncState } from '@/lib/store';
@@ -17,9 +17,12 @@ const SYNC_TEXT: Record<SyncState, string> = {
 };
 
 export default function UsScreen() {
-  const { household, me, members, rename, removeMember, syncState, syncNow } = useStore();
+  const { household, me, members, rename, removeMember, joinHousehold, syncState, syncNow } = useStore();
   const [copied, setCopied] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
+  const [newCode, setNewCode] = useState('');
+  const [switchError, setSwitchError] = useState('');
 
   if (!household) {
     return (
@@ -27,6 +30,17 @@ export default function UsScreen() {
         <Welcome />
       </Screen>
     );
+  }
+
+  async function switchList() {
+    setSwitchError('');
+    try {
+      await joinHousehold(newCode, me?.name || 'Me');
+      setSwitching(false);
+      setNewCode('');
+    } catch (e) {
+      setSwitchError((e as Error).message);
+    }
   }
 
   async function copyCode() {
@@ -88,6 +102,33 @@ export default function UsScreen() {
               : "On your partner's phone, open Couch Queue, tap “Join my partner's list” and enter this code."}
           </Body>
         </Card>
+      ) : null}
+
+      {hasSync ? (
+        switching ? (
+          <View style={{ gap: Spacing.two }}>
+            <Label>Switch to another list</Label>
+            <TextInput
+              id="us-switch-code"
+              value={newCode}
+              onChangeText={(t) => setNewCode(t.toUpperCase())}
+              placeholder="Invite code"
+              placeholderTextColor={Colors.muted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              style={[styles.input, { letterSpacing: 4, fontWeight: '700' }]}
+            />
+            {switchError ? <Text style={{ color: Colors.end }}>{switchError}</Text> : null}
+            <View style={{ flexDirection: 'row', gap: Spacing.two }}>
+              <Button title="Cancel" onPress={() => setSwitching(false)} />
+              <Button title="Switch" kind="primary" onPress={switchList} disabled={newCode.trim().length < 8} />
+            </View>
+          </View>
+        ) : (
+          <Pressable onPress={() => setSwitching(true)} accessibilityRole="button">
+            <Text style={{ color: Colors.lamp, fontSize: 15 }}>Switch to another list…</Text>
+          </Pressable>
+        )
       ) : null}
 
       <View style={{ gap: Spacing.two }}>
