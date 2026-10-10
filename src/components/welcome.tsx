@@ -7,7 +7,7 @@ import { hasSync } from '@/lib/sync';
 
 import { Body, Button, Heading } from './ui';
 
-/** First launch: name yourself, then start a new list or join your partner's. */
+/** First launch: name yourself, then open the shared list (most people) or create a new one. */
 export function Welcome() {
   const { createHousehold, joinHousehold } = useStore();
   const [name, setName] = useState('');
@@ -54,12 +54,12 @@ export function Welcome() {
 
       {joining ? (
         <View style={{ gap: Spacing.two }}>
-          <Text style={styles.fieldLabel}>Household code from the other phone</Text>
+          <Text style={styles.fieldLabel}>List code (shown on the Us tab of the other phone)</Text>
           <TextInput
             id="welcome-code"
             value={code}
             onChangeText={(t) => setCode(t.toUpperCase())}
-            placeholder="8 letters and numbers"
+            placeholder="List code"
             placeholderTextColor={Colors.muted}
             autoCapitalize="characters"
             autoCorrect={false}
@@ -68,16 +68,31 @@ export function Welcome() {
           {error ? <Text style={{ color: Colors.end }}>{error}</Text> : null}
           <View style={styles.row}>
             <Button title="Back" onPress={() => setJoining(false)} />
-            <Button title={busy ? 'Joining…' : 'Join list'} kind="primary" onPress={join} disabled={!named || code.length < 8 || busy} />
+            <Button title={busy ? 'Opening…' : 'Open list'} kind="primary" onPress={join} disabled={!named || code.length < 8 || busy} />
           </View>
         </View>
       ) : (
-        <View style={{ gap: Spacing.two }}>
-          <Button title="Start our list" kind="primary" onPress={() => createHousehold(name)} disabled={!named} />
-          {hasSync ? <Button title="Join my partner's list" onPress={() => setJoining(true)} /> : null}
-          <Body muted style={{ fontSize: 13 }}>
-            Starting a list adds Peaky Blinders, General Hospital and Star Trek: Strange New Worlds for you.
-          </Body>
+        <View style={{ gap: Spacing.four }}>
+          {hasSync ? (
+            <View style={{ gap: Spacing.two }}>
+              <Button title="Open our shared list" kind="primary" onPress={() => setJoining(true)} disabled={!named} />
+              <Body muted style={{ fontSize: 13 }}>
+                Already using Couch Queue on another phone or computer? Choose this and enter your list code.
+              </Body>
+            </View>
+          ) : null}
+          <View style={{ gap: Spacing.two }}>
+            <Button
+              title="Create a brand-new list"
+              kind={hasSync ? 'secondary' : 'primary'}
+              onPress={() => createHousehold(name)}
+              disabled={!named}
+            />
+            <Body muted style={{ fontSize: 13 }}>
+              Only if nobody in your home has set up Couch Queue yet. It starts you off with Peaky Blinders, General
+              Hospital and Star Trek: Strange New Worlds.
+            </Body>
+          </View>
         </View>
       )}
     </View>

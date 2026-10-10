@@ -136,7 +136,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const joinHousehold = useCallback(async (code: string, name: string) => {
     if (!hasSync) throw new Error('Sharing is not set up in this copy of the app yet.');
     const remote = await fetchHousehold(code.trim().toUpperCase());
-    if (!remote) throw new Error('No household uses that code. Check it and try again.');
+    if (!remote) throw new Error('No list uses that code. Check it and try again.');
     const now = Date.now();
     // Rejoining under the same name picks up where that person left off instead of adding a second copy.
     const existing = orderedMembers(remote).find((m) => m.name.toLowerCase() === name.trim().toLowerCase());

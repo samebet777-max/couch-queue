@@ -92,14 +92,14 @@ export default function UsScreen() {
 
       {hasSync ? (
         <Card style={{ gap: Spacing.two }}>
-          <Label>Invite code</Label>
+          <Label>Your list code</Label>
           <Pressable onPress={copyCode} accessibilityRole="button" accessibilityHint="Copies the code">
             <Text style={styles.code}>{household.code}</Text>
           </Pressable>
           <Body muted style={{ fontSize: 13 }}>
             {copied
               ? 'Copied.'
-              : "On your partner's phone, open Couch Queue, tap “Join my partner's list” and enter this code."}
+              : "To open this list on another phone or computer, choose “Open our shared list” and enter this code."}
           </Body>
         </Card>
       ) : null}
@@ -112,7 +112,7 @@ export default function UsScreen() {
               id="us-switch-code"
               value={newCode}
               onChangeText={(t) => setNewCode(t.toUpperCase())}
-              placeholder="Invite code"
+              placeholder="List code"
               placeholderTextColor={Colors.muted}
               autoCapitalize="characters"
               autoCorrect={false}
