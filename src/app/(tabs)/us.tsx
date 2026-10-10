@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Body, Button, Card, Heading, Label, Screen } from '@/components/ui';
 import { Welcome } from '@/components/welcome';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useAlerts, type AlertState } from '@/lib/push';
 import { useStore, type SyncState } from '@/lib/store';
 import { hasSync } from '@/lib/sync';
 import { hasTmdb } from '@/lib/tmdb';
@@ -15,6 +16,30 @@ const SYNC_TEXT: Record<SyncState, string> = {
   synced: 'Up to date on both phones.',
   offline: "Can't reach the shared list right now. Changes are saved and will sync when you're back online.",
 };
+
+const ALERT_TEXT: Record<AlertState, string> = {
+  on: 'On. This phone gets an alert when one of your shows comes back, a premiere date is announced, or a movie you’re waiting for comes out.',
+  off: 'Get an alert on this phone when one of your shows comes back, a premiere date is announced, or a movie you’re waiting for comes out.',
+  'add-to-home': 'Alerts only work when Couch Queue is opened from its icon on your Home Screen.',
+  blocked: 'Alerts are blocked for Couch Queue. To allow them, open the iPhone Settings app, tap Notifications, then Couch Queue, and turn on Allow Notifications.',
+  unavailable: 'This browser can’t show alerts from Couch Queue.',
+};
+
+function Alerts({ code, memberId }: { code: string; memberId: string | undefined }) {
+  const { state, error, turnOn, turnOff } = useAlerts(code, memberId);
+  if (!state) return null;
+  return (
+    <Card style={{ gap: Spacing.two }}>
+      <Label>Phone alerts</Label>
+      <Body muted style={{ fontSize: 14 }}>
+        {ALERT_TEXT[state]}
+      </Body>
+      {state === 'off' ? <Button kind="primary" title="Turn on alerts" onPress={turnOn} /> : null}
+      {state === 'on' ? <Button title="Turn off alerts" onPress={turnOff} /> : null}
+      {error ? <Text style={{ color: Colors.end }}>{error}</Text> : null}
+    </Card>
+  );
+}
 
 export default function UsScreen() {
   const { household, me, members, rename, removeMember, joinHousehold, syncState, syncNow } = useStore();
@@ -89,6 +114,8 @@ export default function UsScreen() {
           </View>
         ))}
       </View>
+
+      <Alerts code={household.code} memberId={me?.id} />
 
       {hasSync ? (
         <Card style={{ gap: Spacing.two }}>

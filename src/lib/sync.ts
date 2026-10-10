@@ -4,13 +4,13 @@
 
 import type { Household } from './household';
 
-const url = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
+export const supabaseUrl = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-export const hasSync = url.length > 0 && anonKey.length > 0;
+export const hasSync = supabaseUrl.length > 0 && anonKey.length > 0;
 
-async function rpc<T>(fn: string, body: object): Promise<T> {
-  const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+export async function rpc<T>(fn: string, body: object): Promise<T> {
+  const res = await fetch(`${supabaseUrl}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: {
       apikey: anonKey,
@@ -20,7 +20,8 @@ async function rpc<T>(fn: string, body: object): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Sync failed (${res.status})`);
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 /** Returns null when no household has this code. */
