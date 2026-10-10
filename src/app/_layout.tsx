@@ -10,6 +10,11 @@ import { useWebAutoUpdate } from '@/lib/web-updates';
 
 SplashScreen.preventAutoHideAsync();
 
+// Opening a show straight from an alert (or a reload) still puts the tabs underneath, so Back works.
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
+
 const theme = {
   ...DarkTheme,
   colors: { ...DarkTheme.colors, background: Colors.night, card: Colors.sofa, primary: Colors.lamp, text: Colors.text },
