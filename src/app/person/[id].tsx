@@ -38,11 +38,12 @@ export default function PersonScreen() {
     );
   }
 
-  // Their best-known shows and movies, minus talk-show and award-show guest spots.
-  const credits = personCredits(person);
-  const onOurList = credits.filter((c) => find(c));
-  const alsoIn = credits.filter((c) => !find(c)).slice(0, 15);
-  const role = fromShow ? credits.find((c) => c.name === fromShow)?.character : undefined;
+  // Their best-known roles, split into TV and movies, with anything already on our list pulled out first.
+  const { tv, movies } = personCredits(person);
+  const onOurList = [...tv, ...movies].filter((c) => find(c));
+  const tvRoles = tv.filter((c) => !find(c)).slice(0, 10);
+  const movieRoles = movies.filter((c) => !find(c)).slice(0, 10);
+  const role = fromShow ? person.combined_credits?.cast.find((c) => (c.title ?? c.name) === fromShow)?.character : undefined;
 
   const age =
     person.birthday && !person.deathday
@@ -84,9 +85,8 @@ export default function PersonScreen() {
         ) : null}
 
         {onOurList.length > 0 ? <CreditRow title="On our list" credits={onOurList} /> : null}
-        {alsoIn.length > 0 ? (
-          <CreditRow title={onOurList.length > 0 ? 'Also in' : 'Known for'} credits={alsoIn} />
-        ) : null}
+        {movieRoles.length > 0 ? <CreditRow title="Movies" credits={movieRoles} /> : null}
+        {tvRoles.length > 0 ? <CreditRow title="TV shows" credits={tvRoles} /> : null}
 
         <Pressable onPress={() => WebBrowser.openBrowserAsync(`https://www.themoviedb.org/person/${person.id}`)}>
           <Text style={{ color: Colors.muted, fontSize: 12 }}>Full filmography on TMDB</Text>

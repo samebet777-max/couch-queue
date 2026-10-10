@@ -113,6 +113,7 @@ type RawCredit = {
   release_date?: string;
   poster_path: string | null;
   popularity?: number;
+  vote_count?: number;
   character?: string;
   episode_count?: number;
   genre_ids?: number[];
@@ -144,22 +145,32 @@ export type Credit = TitleResult & { character: string };
 // Talk shows, news, reality and award shows: guest spots there aren't roles anyone looks for.
 const NOT_ROLES = new Set([10767, 10763, 10764]);
 
-/** Someone's real roles, best known first, each title once. */
-export function personCredits(person: TmdbPerson): Credit[] {
+/**
+ * Someone's real roles, each title once: regular TV roles (most episodes first) and movies
+ * (most widely seen first). One-episode guest spots and talk-show appearances are left out.
+ */
+export function personCredits(person: TmdbPerson): { tv: Credit[]; movies: Credit[] } {
   const seen = new Set<string>();
-  return (person.combined_credits?.cast ?? [])
-    .filter((c) => c.media_type === 'tv' || c.media_type === 'movie')
+  const roles = (person.combined_credits?.cast ?? [])
     .filter((c) => !c.genre_ids?.some((g) => NOT_ROLES.has(g)))
-    .filter((c) => (c.media_type === 'tv' ? (c.episode_count ?? 0) > 1 || !!c.character : !!c.character))
     .filter((c) => !/^(himself|herself|themselves|self)\b/i.test(c.character ?? ''))
-    .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
     .filter((c) => {
       const key = `${c.media_type}:${c.id}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    })
-    .map((c) => ({ ...toTitle(c), character: c.character ?? '' }));
+    });
+  const toCredit = (c: RawCredit): Credit => ({ ...toTitle(c), character: c.character ?? '' });
+  return {
+    tv: roles
+      .filter((c) => c.media_type === 'tv' && (c.episode_count ?? 0) >= 3)
+      .sort((a, b) => (b.episode_count ?? 0) - (a.episode_count ?? 0) || (b.popularity ?? 0) - (a.popularity ?? 0))
+      .map(toCredit),
+    movies: roles
+      .filter((c) => c.media_type === 'movie' && !!c.character)
+      .sort((a, b) => (b.vote_count ?? 0) - (a.vote_count ?? 0))
+      .map(toCredit),
+  };
 }
 
 async function get<T>(path: string, params: Record<string, string> = {}): Promise<T> {
