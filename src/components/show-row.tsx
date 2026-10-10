@@ -20,7 +20,7 @@ export function ShowRow({ saved }: { saved: SavedShow }) {
     <Pressable
       onPress={() => router.push({ pathname: '/show/[id]', params: { id: String(saved.id) } })}
       style={styles.row}>
-        <Poster path={show?.poster_path ?? saved.posterPath} id={saved.id} width={56} size="w185" />
+        <Poster path={show?.poster_path ?? saved.posterPath} id={saved.id} width={72} size="w185" />
         <View style={styles.meta}>
           <Text style={styles.title} numberOfLines={1}>
             {saved.name}
@@ -28,7 +28,11 @@ export function ShowRow({ saved }: { saved: SavedShow }) {
           <Text style={styles.sub} numberOfLines={1}>
             {show ? `${networkLabel(show)} · ${seasonCount} season${seasonCount === 1 ? '' : 's'}` : error ? 'Show details unavailable' : ' '}
           </Text>
-          {status ? <Pill tone={status.tone}>{status.label}</Pill> : null}
+          {saved.newEpisodes ? (
+            <Text style={styles.fresh}>New episodes!</Text>
+          ) : status ? (
+            <Pill tone={status.tone}>{status.label}</Pill>
+          ) : null}
           {seasonCount > 0 && members.length > 0 ? (
             <View style={{ gap: 3, marginTop: 2 }}>
               {members.map((m, i) =>
@@ -60,4 +64,15 @@ const styles = StyleSheet.create({
   meta: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontWeight: '700', fontSize: 16, color: Colors.text },
   sub: { color: Colors.muted, fontSize: 12 },
+  fresh: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.lamp,
+    color: Colors.lampInk,
+    fontWeight: '800',
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 99,
+    overflow: 'hidden',
+  },
 });

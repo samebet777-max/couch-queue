@@ -6,13 +6,16 @@ import { Body, Chips, Heading, Notice, Screen } from '@/components/ui';
 import { Welcome } from '@/components/welcome';
 import { Colors, Spacing } from '@/constants/theme';
 import { LISTS, isFor, type ListName } from '@/lib/household';
+import { sortList } from '@/lib/smart-lists';
 import { useStore } from '@/lib/store';
 import { hasTmdb } from '@/lib/tmdb';
+import { useShows } from '@/lib/use-tmdb';
 
 export default function ShowsScreen() {
   const { ready, household, shows, members, me } = useStore();
   const [list, setList] = useState<ListName>('watching');
   const [scope, setScope] = useState<'mine' | 'all'>('mine');
+  const details = useShows(shows.map((s) => s.id));
 
   if (!ready) return <Screen>{null}</Screen>;
   if (!household) {
@@ -25,7 +28,11 @@ export default function ShowsScreen() {
 
   const shared = members.length > 1;
   const mineOnly = shared && scope === 'mine';
-  const visible = shows.filter((s) => s.list === list && (!mineOnly || isFor(s, me?.id)));
+  const visible = sortList(
+    list,
+    shows.filter((s) => s.list === list && (!mineOnly || isFor(s, me?.id))),
+    details,
+  );
 
   return (
     <Screen>

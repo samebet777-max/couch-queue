@@ -13,6 +13,7 @@ import {
   type Member,
   type SavedShow,
 } from './household';
+import { localDate } from './smart-lists';
 import { fetchHousehold, hasSync, pushHousehold } from './sync';
 
 const STORAGE_KEY = 'couchqueue:v1';
@@ -41,6 +42,8 @@ type Store = {
   rename: (name: string) => void;
   addShow: (show: Pick<SavedShow, 'id' | 'name' | 'posterPath'>, list?: ListName) => void;
   moveShow: (id: number, list: ListName) => void;
+  patchShows: (patches: Record<number, Partial<SavedShow>>) => void;
+  markSeen: (id: number) => void;
   setWatchers: (id: number, memberIds: string[]) => void;
   removeMember: (memberId: string) => void;
   removeShow: (id: number) => void;
@@ -194,6 +197,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 addedAt: existing && !existing.removed ? existing.addedAt : now,
                 updatedAt: now,
                 removed: false,
+                tidied: true,
+                waitingSince:
+                  existing && !existing.removed ? existing.waitingSince : list === 'waiting' ? localDate() : undefined,
+                newEpisodes: existing && !existing.removed ? existing.newEpisodes : undefined,
                 // A new show is for whoever added it; they can add the other person on its page.
                 watchers: existing && !existing.removed ? existing.watchers : meId ? [meId] : undefined,
               },
@@ -202,7 +209,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }),
       moveShow: (id, list) =>
         update((h) =>
-          h.shows[id] ? { ...h, shows: { ...h.shows, [id]: { ...h.shows[id], list, updatedAt: Date.now() } } } : h,
+          h.shows[id]
+            ? {
+                ...h,
+                shows: {
+                  ...h.shows,
+                  [id]: {
+                    ...h.shows[id],
+                    list,
+                    waitingSince: list === 'waiting' ? localDate() : undefined,
+                    newEpisodes: undefined,
+                    updatedAt: Date.now(),
+                  },
+                },
+              }
+            : h,
+        ),
+      patchShows: (patches) =>
+        update((h) => {
+          const now = Date.now();
+          const shows = { ...h.shows };
+          for (const [id, patch] of Object.entries(patches)) {
+            if (shows[id] && !shows[id].removed) shows[id] = { ...shows[id], ...patch, updatedAt: now };
+          }
+          return { ...h, shows };
+        }),
+      markSeen: (id) =>
+        update((h) =>
+          h.shows[id]?.newEpisodes
+            ? { ...h, shows: { ...h.shows, [id]: { ...h.shows[id], newEpisodes: undefined, updatedAt: Date.now() } } }
+            : h,
         ),
       setWatchers: (id, memberIds) =>
         update((h) =>

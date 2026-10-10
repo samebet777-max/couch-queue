@@ -2,9 +2,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Link, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import { useEffect } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddToList } from '@/components/add-to-list';
 import { Body, Button, Chips, Label, Loading, Notice, Poster } from '@/components/ui';
 import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { LISTS, isFor } from '@/lib/household';
@@ -31,6 +33,12 @@ export default function ShowScreen() {
   const { data: show, error } = useShow(id);
   const store = useStore();
   const saved = store.shows.find((s) => s.id === id);
+  const isNew = !!saved?.newEpisodes;
+  const { markSeen } = store;
+  // Opening a show that just came back counts as noticing it.
+  useEffect(() => {
+    if (isNew) markSeen(id);
+  }, [isNew, id, markSeen]);
 
   if (error) {
     return (
@@ -144,7 +152,10 @@ export default function ShowScreen() {
             ) : null}
           </View>
         ) : (
-          <Button kind="primary" title="Add to our list" onPress={() => store.addShow({ id, name: show.name, posterPath: show.poster_path })} />
+          <View style={{ gap: Spacing.two }}>
+            <Label>Add to our list</Label>
+            <AddToList show={show} />
+          </View>
         )}
 
         {aired.length > 0 ? (

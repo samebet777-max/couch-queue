@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { ListAutomation } from '@/components/list-automation';
 import { Colors } from '@/constants/theme';
 import { StoreProvider, useStore } from '@/lib/store';
 import { useWebAutoUpdate } from '@/lib/web-updates';
@@ -28,6 +29,7 @@ export default function RootLayout() {
     <ThemeProvider value={theme}>
       <StoreProvider>
         <HideSplashWhenReady />
+        <ListAutomation />
         <StatusBar style="light" />
         <Stack
           screenOptions={{
