@@ -5,12 +5,12 @@ import { Spacing } from '@/constants/theme';
 import { LISTS, type ListName } from '@/lib/household';
 import { suggestList } from '@/lib/smart-lists';
 import { useStore } from '@/lib/store';
-import type { TmdbShow } from '@/lib/tmdb';
+import { titleName, type TmdbTitle } from '@/lib/tmdb';
 
 import { Body, Button, Chips } from './ui';
 
-/** Adding a show: the suggested list is picked already, and any other list is one tap away. */
-export function AddToList({ show, onDone, onCancel }: { show: TmdbShow; onDone?: () => void; onCancel?: () => void }) {
+/** Adding a show or movie: the suggested list is picked already, and any other list is one tap away. */
+export function AddToList({ show, onDone, onCancel }: { show: TmdbTitle; onDone?: () => void; onCancel?: () => void }) {
   const { addShow } = useStore();
   const suggestion = suggestList(show);
   const [list, setList] = useState<ListName>(suggestion.list);
@@ -27,7 +27,15 @@ export function AddToList({ show, onDone, onCancel }: { show: TmdbShow; onDone?:
           kind="primary"
           title={`Add to ${LISTS.find((l) => l.key === list)?.label}`}
           onPress={() => {
-            addShow({ id: show.id, name: show.name, posterPath: show.poster_path }, list);
+            addShow(
+              {
+                id: show.id,
+                ...(show.media === 'movie' ? { kind: 'movie' as const } : {}),
+                name: titleName(show),
+                posterPath: show.poster_path,
+              },
+              list,
+            );
             onDone?.();
           }}
         />

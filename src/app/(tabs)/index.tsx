@@ -5,17 +5,17 @@ import { ShowRow } from '@/components/show-row';
 import { Body, Chips, Heading, Notice, Screen } from '@/components/ui';
 import { Welcome } from '@/components/welcome';
 import { Colors, Spacing } from '@/constants/theme';
-import { LISTS, isFor, type ListName } from '@/lib/household';
+import { LISTS, isFor, showKey, type ListName } from '@/lib/household';
 import { sortList } from '@/lib/smart-lists';
 import { useStore } from '@/lib/store';
 import { hasTmdb } from '@/lib/tmdb';
-import { useShows } from '@/lib/use-tmdb';
+import { useTitles } from '@/lib/use-tmdb';
 
 export default function ShowsScreen() {
   const { ready, household, shows, members, me } = useStore();
   const [list, setList] = useState<ListName>('watching');
   const [scope, setScope] = useState<'mine' | 'all'>('mine');
-  const details = useShows(shows.map((s) => s.id));
+  const details = useTitles(shows);
 
   if (!ready) return <Screen>{null}</Screen>;
   if (!household) {
@@ -67,11 +67,11 @@ export default function ShowsScreen() {
 
       <View style={{ gap: Spacing.two }}>
         {visible.map((s) => (
-          <ShowRow key={s.id} saved={s} />
+          <ShowRow key={showKey(s)} saved={s} />
         ))}
         {visible.length === 0 ? (
           <Body muted style={{ paddingVertical: Spacing.five, textAlign: 'center' }}>
-            Nothing here yet. Find a show in Search, or move one here from its page.
+            Nothing here yet. Find a show or movie in Search, or move one here from its page.
           </Body>
         ) : null}
       </View>

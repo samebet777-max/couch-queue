@@ -3,22 +3,26 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { isFor, type SavedShow } from '@/lib/household';
-import { nextSeason } from '@/lib/next-season';
+import { titleStatus } from '@/lib/next-season';
 import { useStore } from '@/lib/store';
-import { networkLabel, realSeasons } from '@/lib/tmdb';
-import { useShow } from '@/lib/use-tmdb';
+import { networkLabel, realSeasons, type TmdbTitle } from '@/lib/tmdb';
+import { useTitle } from '@/lib/use-tmdb';
 
 import { Pill, Poster, ProgressBar } from './ui';
 
 export function ShowRow({ saved }: { saved: SavedShow }) {
   const { members, seasonsWatched } = useStore();
-  const { data: show, error } = useShow(saved.id);
-  const seasonCount = show ? realSeasons(show).filter((s) => s.air_date && new Date(s.air_date) <= new Date()).length : 0;
-  const status = show ? nextSeason(show) : null;
+  const movie = saved.kind === 'movie';
+  const { data: show, error } = useTitle(movie ? 'movie' : 'tv', saved.id);
+  const seasonCount =
+    show?.media === 'tv' ? realSeasons(show).filter((s) => s.air_date && new Date(s.air_date) <= new Date()).length : 0;
+  const status = show ? titleStatus(show) : null;
 
   return (
     <Pressable
-      onPress={() => router.push({ pathname: '/show/[id]', params: { id: String(saved.id) } })}
+      onPress={() =>
+        router.push({ pathname: movie ? '/movie/[id]' : '/show/[id]', params: { id: String(saved.id) } })
+      }
       style={styles.row}>
         <Poster path={show?.poster_path ?? saved.posterPath} id={saved.id} width={72} size="w185" />
         <View style={styles.meta}>
@@ -26,10 +30,10 @@ export function ShowRow({ saved }: { saved: SavedShow }) {
             {saved.name}
           </Text>
           <Text style={styles.sub} numberOfLines={1}>
-            {show ? `${networkLabel(show)} · ${seasonCount} season${seasonCount === 1 ? '' : 's'}` : error ? 'Show details unavailable' : ' '}
+            {show ? subtitle(show, seasonCount) : error ? 'Details unavailable' : ' '}
           </Text>
           {saved.newEpisodes ? (
-            <Text style={styles.fresh}>New episodes!</Text>
+            <Text style={styles.fresh}>{movie ? 'Out now!' : 'New episodes!'}</Text>
           ) : status ? (
             <Pill tone={status.tone}>{status.label}</Pill>
           ) : null}
@@ -50,6 +54,12 @@ export function ShowRow({ saved }: { saved: SavedShow }) {
         </View>
     </Pressable>
   );
+}
+
+function subtitle(show: TmdbTitle, seasons: number) {
+  if (show.media === 'tv') return `${networkLabel(show)} · ${seasons} season${seasons === 1 ? '' : 's'}`;
+  const length = show.runtime ? ` · ${Math.floor(show.runtime / 60)}h ${show.runtime % 60}m` : '';
+  return `Movie${show.release_date ? ` · ${show.release_date.slice(0, 4)}` : ''}${length}`;
 }
 
 const styles = StyleSheet.create({

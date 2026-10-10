@@ -3,10 +3,10 @@ import { Pressable, Text, View } from 'react-native';
 
 import { Body, Card, Heading, Label, Pill, Screen } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { isFor } from '@/lib/household';
-import { nextSeason, type NextSeason } from '@/lib/next-season';
+import { isFor, showKey } from '@/lib/household';
+import { titleStatus, type NextSeason } from '@/lib/next-season';
 import { useStore } from '@/lib/store';
-import { useShows } from '@/lib/use-tmdb';
+import { useTitles } from '@/lib/use-tmdb';
 
 const TONE_RANK = { warn: 0, ok: 1, info: 2, end: 3 } as const;
 
@@ -19,14 +19,14 @@ function compare(a: NextSeason | null, b: NextSeason | null) {
 export default function NewsScreen() {
   const { shows, me } = useStore();
   const tracked = shows.filter((s) => s.list !== 'done' && isFor(s, me?.id));
-  const details = useShows(tracked.map((s) => s.id));
+  const details = useTitles(tracked);
 
   const items = tracked
     .map((saved) => {
-      const show = details[saved.id];
+      const show = details[showKey(saved)];
       return {
         saved,
-        status: show && !(show instanceof Error) ? nextSeason(show) : null,
+        status: show && !(show instanceof Error) ? titleStatus(show) : null,
         failed: show instanceof Error,
       };
     })
@@ -34,15 +34,18 @@ export default function NewsScreen() {
 
   return (
     <Screen>
-      <Heading>Next season</Heading>
+      <Heading>Coming up</Heading>
       <Body muted>
-        What’s coming for every show you’re watching or waiting on. Phone alerts and news articles come in the next
+        What’s coming for every show and movie you’re watching or waiting on. Phone alerts and news articles come in the next
         update.
       </Body>
       <Label>Your shows</Label>
       <View style={{ gap: Spacing.two }}>
         {items.map(({ saved, status, failed }) => (
-          <Link key={saved.id} href={{ pathname: '/show/[id]', params: { id: String(saved.id) } }} asChild>
+          <Link
+            key={showKey(saved)}
+            href={{ pathname: saved.kind === 'movie' ? '/movie/[id]' : '/show/[id]', params: { id: String(saved.id) } }}
+            asChild>
             <Pressable>
               <Card hot={status?.tone === 'warn'}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two }}>

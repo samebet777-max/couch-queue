@@ -8,6 +8,7 @@ import {
   newId,
   orderedMembers,
   progressKey,
+  showKey,
   type Household,
   type ListName,
   type Member,
@@ -40,13 +41,16 @@ type Store = {
   createHousehold: (name: string) => void;
   joinHousehold: (code: string, name: string) => Promise<void>;
   rename: (name: string) => void;
-  addShow: (show: Pick<SavedShow, 'id' | 'name' | 'posterPath'>, list?: ListName) => void;
-  moveShow: (id: number, list: ListName) => void;
-  patchShows: (patches: Record<number, Partial<SavedShow>>) => void;
-  markSeen: (id: number) => void;
-  setWatchers: (id: number, memberIds: string[]) => void;
+  /** Finds a saved show or movie, if it's on the list. */
+  find: (item: { id: number; kind?: 'tv' | 'movie' }) => SavedShow | undefined;
+  addShow: (show: Pick<SavedShow, 'id' | 'kind' | 'name' | 'posterPath'>, list?: ListName) => void;
+  // These take a showKey().
+  moveShow: (key: string, list: ListName) => void;
+  patchShows: (patches: Record<string, Partial<SavedShow>>) => void;
+  markSeen: (key: string) => void;
+  setWatchers: (key: string, memberIds: string[]) => void;
   removeMember: (memberId: string) => void;
-  removeShow: (id: number) => void;
+  removeShow: (key: string) => void;
   setSeasonsWatched: (showId: number, seasons: number) => void;
   seasonsWatched: (showId: number, memberId: string) => number;
   syncNow: () => Promise<void>;
@@ -182,15 +186,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         update((h, meId) =>
           meId ? { ...h, members: { ...h.members, [meId]: { ...h.members[meId], name, updatedAt: Date.now() } } } : h,
         ),
+      find: (item) => {
+        const s = household?.shows[showKey(item)];
+        return s && !s.removed ? s : undefined;
+      },
       addShow: (show, list = 'watching') =>
         update((h, meId) => {
-          const existing = h.shows[show.id];
+          const key = showKey(show);
+          const existing = h.shows[key];
           const now = Date.now();
           return {
             ...h,
             shows: {
               ...h.shows,
-              [show.id]: {
+              [key]: {
                 ...show,
                 list: existing && !existing.removed ? existing.list : list,
                 addedBy: existing?.addedBy ?? meId ?? '',
@@ -207,15 +216,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             },
           };
         }),
-      moveShow: (id, list) =>
+      moveShow: (key, list) =>
         update((h) =>
-          h.shows[id]
+          h.shows[key]
             ? {
                 ...h,
                 shows: {
                   ...h.shows,
-                  [id]: {
-                    ...h.shows[id],
+                  [key]: {
+                    ...h.shows[key],
                     list,
                     waitingSince: list === 'waiting' ? localDate() : undefined,
                     newEpisodes: undefined,
@@ -229,21 +238,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         update((h) => {
           const now = Date.now();
           const shows = { ...h.shows };
-          for (const [id, patch] of Object.entries(patches)) {
-            if (shows[id] && !shows[id].removed) shows[id] = { ...shows[id], ...patch, updatedAt: now };
+          for (const [key, patch] of Object.entries(patches)) {
+            if (shows[key] && !shows[key].removed) shows[key] = { ...shows[key], ...patch, updatedAt: now };
           }
           return { ...h, shows };
         }),
-      markSeen: (id) =>
+      markSeen: (key) =>
         update((h) =>
-          h.shows[id]?.newEpisodes
-            ? { ...h, shows: { ...h.shows, [id]: { ...h.shows[id], newEpisodes: undefined, updatedAt: Date.now() } } }
+          h.shows[key]?.newEpisodes
+            ? { ...h, shows: { ...h.shows, [key]: { ...h.shows[key], newEpisodes: undefined, updatedAt: Date.now() } } }
             : h,
         ),
-      setWatchers: (id, memberIds) =>
+      setWatchers: (key, memberIds) =>
         update((h) =>
-          h.shows[id]
-            ? { ...h, shows: { ...h.shows, [id]: { ...h.shows[id], watchers: memberIds, updatedAt: Date.now() } } }
+          h.shows[key]
+            ? { ...h, shows: { ...h.shows, [key]: { ...h.shows[key], watchers: memberIds, updatedAt: Date.now() } } }
             : h,
         ),
       removeMember: (memberId) =>
@@ -271,10 +280,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             members: { ...h.members, [memberId]: { ...h.members[memberId], removed: true, updatedAt: now } },
           };
         }),
-      removeShow: (id) =>
+      removeShow: (key) =>
         update((h) =>
-          h.shows[id]
-            ? { ...h, shows: { ...h.shows, [id]: { ...h.shows[id], removed: true, updatedAt: Date.now() } } }
+          h.shows[key]
+            ? { ...h, shows: { ...h.shows, [key]: { ...h.shows[key], removed: true, updatedAt: Date.now() } } }
             : h,
         ),
       setSeasonsWatched: (showId, seasons) =>

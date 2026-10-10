@@ -14,6 +14,8 @@ export type Member = { id: string; name: string; joinedAt: number; updatedAt: nu
 
 export type SavedShow = {
   id: number; // TMDB id
+  /** Missing means a TV show (everything saved before movies were added). */
+  kind?: 'movie';
   name: string;
   posterPath: string | null;
   list: ListName;
@@ -31,6 +33,11 @@ export type SavedShow = {
   tidied?: boolean;
 };
 
+/** Where an entry lives in `Household.shows`. TV shows keep their bare TMDB id so older entries still match. */
+export function showKey(item: { id: number; kind?: 'tv' | 'movie' }) {
+  return item.kind === 'movie' ? `movie:${item.id}` : String(item.id);
+}
+
 /** Whether a show belongs on this member's list. */
 export function isFor(show: SavedShow, memberId: string | undefined) {
   return !show.watchers?.length || !memberId || show.watchers.includes(memberId);
@@ -42,7 +49,7 @@ export type Progress = { seasonsWatched: number; updatedAt: number };
 export type Household = {
   code: string;
   members: Record<string, Member>;
-  shows: Record<string, SavedShow>;
+  shows: Record<string, SavedShow>; // key: showKey()
   progress: Record<string, Progress>; // key: `${showId}:${memberId}`
 };
 

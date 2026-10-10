@@ -41,6 +41,7 @@ export type TmdbReview = {
 export type TmdbProvider = { provider_id: number; provider_name: string; logo_path: string };
 
 export type TmdbShow = {
+  media: 'tv';
   id: number;
   name: string;
   overview: string;
@@ -67,13 +68,64 @@ export type TmdbShow = {
   };
 };
 
-export type TmdbSearchResult = {
+export type TmdbMovie = {
+  media: 'movie';
+  id: number;
+  title: string;
+  overview: string;
+  tagline: string;
+  status: string; // "Released" | "Post Production" | "In Production" | "Planned" | "Rumored" | "Canceled"
+  release_date: string | null;
+  runtime: number | null;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  genres: { id: number; name: string }[];
+  videos?: { results: TmdbVideo[] };
+  credits?: { cast: TmdbCast[] };
+  reviews?: { results: TmdbReview[] };
+  'watch/providers'?: TmdbShow['watch/providers'];
+};
+
+/** A show or a movie, as loaded for lists and detail pages. */
+export type TmdbTitle = TmdbShow | TmdbMovie;
+
+export type Kind = 'tv' | 'movie';
+
+/** One search hit or film credit, shows and movies alike. */
+export type TitleResult = {
+  kind: Kind;
   id: number;
   name: string;
-  first_air_date: string | null;
+  date: string | null;
   poster_path: string | null;
-  overview: string;
+  popularity: number;
 };
+
+export type PersonResult = { id: number; name: string; profile_path: string | null; knownFor: string[]; popularity: number };
+
+type RawCredit = {
+  media_type: string;
+  id: number;
+  name?: string;
+  title?: string;
+  first_air_date?: string;
+  release_date?: string;
+  poster_path: string | null;
+  popularity?: number;
+  character?: string;
+  episode_count?: number;
+  genre_ids?: number[];
+};
+
+const toTitle = (r: RawCredit): TitleResult => ({
+  kind: r.media_type === 'movie' ? 'movie' : 'tv',
+  id: r.id,
+  name: r.title ?? r.name ?? '',
+  date: (r.media_type === 'movie' ? r.release_date : r.first_air_date) || null,
+  poster_path: r.poster_path,
+  popularity: r.popularity ?? 0,
+});
 
 export type TmdbPerson = {
   id: number;
@@ -84,8 +136,31 @@ export type TmdbPerson = {
   place_of_birth: string | null;
   known_for_department: string;
   profile_path: string | null;
-  tv_credits?: { cast: (TmdbSearchResult & { character: string; episode_count: number })[] };
+  combined_credits?: { cast: RawCredit[] };
 };
+
+export type Credit = TitleResult & { character: string };
+
+// Talk shows, news, reality and award shows: guest spots there aren't roles anyone looks for.
+const NOT_ROLES = new Set([10767, 10763, 10764]);
+
+/** Someone's real roles, best known first, each title once. */
+export function personCredits(person: TmdbPerson): Credit[] {
+  const seen = new Set<string>();
+  return (person.combined_credits?.cast ?? [])
+    .filter((c) => c.media_type === 'tv' || c.media_type === 'movie')
+    .filter((c) => !c.genre_ids?.some((g) => NOT_ROLES.has(g)))
+    .filter((c) => (c.media_type === 'tv' ? (c.episode_count ?? 0) > 1 || !!c.character : !!c.character))
+    .filter((c) => !/^(himself|herself|themselves|self)\b/i.test(c.character ?? ''))
+    .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
+    .filter((c) => {
+      const key = `${c.media_type}:${c.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((c) => ({ ...toTitle(c), character: c.character ?? '' }));
+}
 
 async function get<T>(path: string, params: Record<string, string> = {}): Promise<T> {
   if (!hasTmdb) throw new Error('Show data is not connected yet. Add a TMDB token to the app settings.');
@@ -97,27 +172,54 @@ async function get<T>(path: string, params: Record<string, string> = {}): Promis
   return res.json() as Promise<T>;
 }
 
-export function getShow(id: number) {
-  return get<TmdbShow>(`/tv/${id}`, {
+export async function getShow(id: number): Promise<TmdbShow> {
+  const show = await get<Omit<TmdbShow, 'media'>>(`/tv/${id}`, {
     append_to_response: 'videos,aggregate_credits,reviews,watch/providers',
   });
+  return { ...show, media: 'tv' };
 }
 
-export async function searchShows(query: string) {
-  const data = await get<{ results: TmdbSearchResult[] }>('/search/tv', { query, include_adult: 'false' });
-  return data.results;
+export async function getMovie(id: number): Promise<TmdbMovie> {
+  const movie = await get<Omit<TmdbMovie, 'media'>>(`/movie/${id}`, {
+    append_to_response: 'videos,credits,reviews,watch/providers',
+  });
+  return { ...movie, media: 'movie' };
+}
+
+export const getTitle = (kind: Kind, id: number): Promise<TmdbTitle> => (kind === 'movie' ? getMovie(id) : getShow(id));
+
+/** Shows, movies and people in one search, people listed separately. */
+export async function search(query: string) {
+  const data = await get<{ results: (RawCredit & { profile_path?: string | null; known_for?: RawCredit[] })[] }>(
+    '/search/multi',
+    { query, include_adult: 'false' },
+  );
+  const titles = data.results.filter((r) => r.media_type === 'tv' || r.media_type === 'movie').map(toTitle);
+  const people: PersonResult[] = data.results
+    .filter((r) => r.media_type === 'person')
+    .map((r) => ({
+      id: r.id,
+      name: r.name ?? '',
+      profile_path: r.profile_path ?? null,
+      knownFor: (r.known_for ?? []).map((k) => k.title ?? k.name ?? '').filter(Boolean),
+      popularity: r.popularity ?? 0,
+    }));
+  return { titles, people };
 }
 
 export function getPerson(id: number) {
-  return get<TmdbPerson>(`/person/${id}`, { append_to_response: 'tv_credits' });
+  return get<TmdbPerson>(`/person/${id}`, { append_to_response: 'combined_credits' });
 }
+
+/** Title of a show or movie. */
+export const titleName = (t: TmdbTitle) => (t.media === 'movie' ? t.title : t.name);
 
 export function imageUrl(path: string | null | undefined, size: 'w92' | 'w185' | 'w342' | 'w780' | 'original' = 'w342') {
   return path ? `${IMAGE_BASE}/${size}${path}` : undefined;
 }
 
 /** The best trailer to show: official YouTube trailers first, newest season wins by API order. */
-export function pickTrailer(show: TmdbShow): TmdbVideo | undefined {
+export function pickTrailer(show: TmdbTitle): TmdbVideo | undefined {
   const youtube = (show.videos?.results ?? []).filter((v) => v.site === 'YouTube');
   return (
     youtube.find((v) => v.type === 'Trailer' && v.official) ??

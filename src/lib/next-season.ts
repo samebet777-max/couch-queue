@@ -1,4 +1,4 @@
-import type { TmdbShow } from './tmdb';
+import type { TmdbMovie, TmdbShow, TmdbTitle } from './tmdb';
 
 export type Tone = 'ok' | 'warn' | 'info' | 'end';
 
@@ -65,3 +65,25 @@ export function nextSeason(show: TmdbShow, today = new Date()): NextSeason {
         : { label: 'Waiting for news', detail: 'No renewal or premiere date announced yet.', tone: 'end' };
   }
 }
+
+/** When a movie comes out, or how long it's been out. */
+export function movieStatus(movie: TmdbMovie, today = new Date()): NextSeason {
+  const date = movie.release_date;
+  if (!date) {
+    return movie.status === 'Canceled'
+      ? { label: 'Canceled', detail: 'This movie was canceled.', tone: 'end' }
+      : { label: 'No date yet', detail: 'Announced, with no release date yet.', tone: 'info' };
+  }
+  const when = fmt(date);
+  if (new Date(`${date}T12:00:00`) > today) {
+    return { label: `Out ${when.replace(/, \d{4}$/, '')}`, detail: `Comes out ${when}.`, tone: 'warn', date };
+  }
+  const recent = today.getTime() - new Date(`${date}T12:00:00`).getTime() < 60 * 86_400_000;
+  return recent
+    ? { label: 'Just released', detail: `Came out ${when}.`, tone: 'ok' }
+    : { label: `Released ${date.slice(0, 4)}`, detail: `Came out ${when}.`, tone: 'end' };
+}
+
+/** The status line for a show or a movie. */
+export const titleStatus = (t: TmdbTitle, today = new Date()) =>
+  t.media === 'movie' ? movieStatus(t, today) : nextSeason(t, today);

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Body, Label, Loading, Notice, Poster } from '@/components/ui';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useStore } from '@/lib/store';
+import { personCredits, type Credit } from '@/lib/tmdb';
 import { usePerson } from '@/lib/use-tmdb';
 
 const fmt = (iso: string) =>
@@ -17,7 +18,7 @@ export default function PersonScreen() {
   const id = Number(idParam);
   const insets = useSafeAreaInsets();
   const { data: person, error } = usePerson(id);
-  const { shows } = useStore();
+  const { find } = useStore();
   const [expanded, setExpanded] = useState(false);
   const [now] = useState(() => Date.now());
 
@@ -37,15 +38,11 @@ export default function PersonScreen() {
     );
   }
 
-  // Their best-known TV, most episodes first, minus talk-show and award-show guest spots.
-  const credits = (person.tv_credits?.cast ?? [])
-    .filter((c) => c.episode_count > 1 || c.character)
-    .sort((a, b) => b.episode_count - a.episode_count);
-  const unique = credits.filter((c, i) => credits.findIndex((o) => o.id === c.id) === i);
-  const listIds = new Set(shows.map((s) => s.id));
-  const onOurList = unique.filter((c) => listIds.has(c.id));
-  const alsoIn = unique.filter((c) => !listIds.has(c.id)).slice(0, 10);
-  const role = fromShow ? unique.find((c) => c.name === fromShow)?.character : undefined;
+  // Their best-known shows and movies, minus talk-show and award-show guest spots.
+  const credits = personCredits(person);
+  const onOurList = credits.filter((c) => find(c));
+  const alsoIn = credits.filter((c) => !find(c)).slice(0, 15);
+  const role = fromShow ? credits.find((c) => c.name === fromShow)?.character : undefined;
 
   const age =
     person.birthday && !person.deathday
@@ -87,7 +84,9 @@ export default function PersonScreen() {
         ) : null}
 
         {onOurList.length > 0 ? <CreditRow title="On our list" credits={onOurList} /> : null}
-        {alsoIn.length > 0 ? <CreditRow title="Also in" credits={alsoIn} /> : null}
+        {alsoIn.length > 0 ? (
+          <CreditRow title={onOurList.length > 0 ? 'Also in' : 'Known for'} credits={alsoIn} />
+        ) : null}
 
         <Pressable onPress={() => WebBrowser.openBrowserAsync(`https://www.themoviedb.org/person/${person.id}`)}>
           <Text style={{ color: Colors.muted, fontSize: 12 }}>Full filmography on TMDB</Text>
@@ -106,23 +105,24 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CreditRow({
-  title,
-  credits,
-}: {
-  title: string;
-  credits: { id: number; name: string; poster_path: string | null; character: string }[];
-}) {
+function CreditRow({ title, credits }: { title: string; credits: Credit[] }) {
   return (
     <View style={{ gap: Spacing.two }}>
       <Label>{title}</Label>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.three }}>
         {credits.map((c) => (
-          <Link key={c.id} href={{ pathname: '/show/[id]', params: { id: String(c.id) } }} asChild>
+          <Link
+            key={`${c.kind}:${c.id}`}
+            href={{ pathname: c.kind === 'movie' ? '/movie/[id]' : '/show/[id]', params: { id: String(c.id) } }}
+            asChild>
             <Pressable style={{ width: 92, gap: 4 }}>
               <Poster path={c.poster_path} id={c.id} width={92} size="w185" />
               <Text style={{ color: Colors.text, fontSize: 12, fontWeight: '600' }} numberOfLines={2}>
                 {c.name}
+              </Text>
+              <Text style={{ color: Colors.muted, fontSize: 11 }} numberOfLines={1}>
+                {c.kind === 'movie' ? 'Movie' : 'TV'}
+                {c.date ? ` · ${c.date.slice(0, 4)}` : ''}
               </Text>
             </Pressable>
           </Link>

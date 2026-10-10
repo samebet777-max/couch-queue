@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import { getPerson, getShow, type TmdbPerson, type TmdbShow } from './tmdb';
+import { showKey } from './household';
+import { getPerson, getTitle, type Kind, type TmdbMovie, type TmdbPerson, type TmdbShow, type TmdbTitle } from './tmdb';
 
 // Responses are cached for the session so lists and detail pages share one fetch.
 const cache = new Map<string, Promise<unknown>>();
@@ -34,26 +35,38 @@ function useCached<T>(key: string | null, load: () => Promise<T>): State<T> {
   return { data: state.data, error: state.error, loading: false };
 }
 
+const titleCacheKey = (kind: Kind, id: number) => (kind === 'movie' ? `movie:${id}` : `show:${id}`);
+
 export const useShow = (id: number | null) =>
-  useCached<TmdbShow>(id === null ? null : `show:${id}`, () => getShow(id as number));
+  useCached<TmdbShow>(id === null ? null : titleCacheKey('tv', id), () => getTitle('tv', id as number) as Promise<TmdbShow>);
+
+export const useMovie = (id: number | null) =>
+  useCached<TmdbMovie>(id === null ? null : titleCacheKey('movie', id), () => getTitle('movie', id as number) as Promise<TmdbMovie>);
+
+export const useTitle = (kind: Kind, id: number | null) =>
+  useCached<TmdbTitle>(id === null ? null : titleCacheKey(kind, id), () => getTitle(kind, id as number));
 
 export const usePerson = (id: number | null) =>
   useCached<TmdbPerson>(id === null ? null : `person:${id}`, () => getPerson(id as number));
 
-/** Loads several shows at once; entries fill in as each one arrives. */
-export function useShows(ids: number[]) {
-  const [shows, setShows] = useState<Record<number, TmdbShow | Error>>({});
-  const key = ids.join(',');
+export type TitleDetails = Record<string, TmdbTitle | Error>;
+
+/** Loads several shows and movies at once, keyed by showKey(); entries fill in as each one arrives. */
+export function useTitles(items: { id: number; kind?: Kind }[]) {
+  const [titles, setTitles] = useState<TitleDetails>({});
+  const key = items.map(showKey).join(',');
   useEffect(() => {
     let live = true;
-    ids.forEach((id) =>
-      cached(`show:${id}`, () => getShow(id))
-        .then((show) => live && setShows((s) => ({ ...s, [id]: show })))
-        .catch((err: Error) => live && setShows((s) => ({ ...s, [id]: err }))),
-    );
+    items.forEach((item) => {
+      const kind = item.kind ?? 'tv';
+      const k = showKey(item);
+      cached(titleCacheKey(kind, item.id), () => getTitle(kind, item.id))
+        .then((t) => live && setTitles((s) => ({ ...s, [k]: t })))
+        .catch((err: Error) => live && setTitles((s) => ({ ...s, [k]: err })));
+    });
     return () => {
       live = false;
     };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  return shows;
+  return titles;
 }
