@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Suggestions } from '@/components/suggestions';
@@ -13,6 +13,8 @@ type Answer = { q: string; titles: TitleResult[]; people: PersonResult[]; error:
 
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
+  const [added, setAdded] = useState('');
+  const input = useRef<TextInput>(null);
   // Results remember which query they answer, so stale ones never show.
   const [answer, setAnswer] = useState<Answer>({ q: '', titles: [], people: [], error: '' });
   const q = query.trim();
@@ -38,6 +40,12 @@ export default function SearchScreen() {
   const error = current ? answer.error : '';
   const loading = searchable && !current;
 
+  // Start fresh for the next search; focusing in the same tap keeps the iPhone keyboard up.
+  function clear() {
+    setQuery('');
+    input.current?.focus();
+  }
+
   return (
     <Screen>
       <Heading>Search</Heading>
@@ -45,17 +53,32 @@ export default function SearchScreen() {
       {!hasTmdb ? (
         <Notice title="Search needs show data">Add the free TMDB token to this copy of the app to search.</Notice>
       ) : null}
-      <TextInput
-        id="search-query"
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Title or actor"
-        placeholderTextColor={Colors.muted}
-        autoCorrect={false}
-        returnKeyType="search"
-        clearButtonMode="while-editing"
-        style={styles.input}
-      />
+      <View>
+        <TextInput
+          ref={input}
+          id="search-query"
+          value={query}
+          onChangeText={(text) => {
+            setQuery(text);
+            setAdded('');
+          }}
+          placeholder="Title or actor"
+          placeholderTextColor={Colors.muted}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          enterKeyHint="search"
+          selectTextOnFocus
+          onKeyPress={(e) => e.nativeEvent.key === 'Escape' && clear()}
+          style={styles.input}
+        />
+        {query ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={clear} style={styles.clear}>
+            <Text style={styles.clearText}>✕</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {added ? <Text style={styles.added}>✓ {added}</Text> : null}
       {error ? <Text style={{ color: Colors.end }}>{error}</Text> : null}
       {loading ? <Loading /> : null}
 
@@ -85,7 +108,14 @@ export default function SearchScreen() {
         <View style={{ gap: Spacing.two }}>
           {people.length > 0 ? <Label>Shows and movies</Label> : null}
           {titles.map((r) => (
-            <TitleRow key={showKey(r)} title={r} />
+            <TitleRow
+              key={showKey(r)}
+              title={r}
+              onAdded={(message) => {
+                setAdded(message);
+                clear();
+              }}
+            />
           ))}
         </View>
       ) : null}
@@ -105,7 +135,30 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 17,
     color: Colors.text,
+    paddingRight: 52,
   },
+  clear: {
+    position: 'absolute',
+    right: 8,
+    top: 0,
+    bottom: 0,
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearText: {
+    color: Colors.night,
+    backgroundColor: Colors.muted,
+    width: 24,
+    height: 24,
+    lineHeight: 24,
+    borderRadius: 12,
+    overflow: 'hidden',
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  added: { color: Colors.ok, fontWeight: '600' },
   title: { fontWeight: '700', fontSize: 15, color: Colors.text },
   sub: { color: Colors.muted, fontSize: 12 },
   person: {

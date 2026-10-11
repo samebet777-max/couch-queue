@@ -10,7 +10,7 @@ import { titleName, type TmdbTitle } from '@/lib/tmdb';
 import { Body, Button, Chips } from './ui';
 
 /** Adding a show or movie: the suggested list is picked already, and any other list is one tap away. */
-export function AddToList({ show, onDone, onCancel }: { show: TmdbTitle; onDone?: () => void; onCancel?: () => void }) {
+export function AddToList({ show, onDone, onCancel }: { show: TmdbTitle; onDone?: (list: ListName) => void; onCancel?: () => void }) {
   const { addShow } = useStore();
   const suggestion = suggestList(show);
   const [list, setList] = useState<ListName>(suggestion.list);
@@ -36,7 +36,7 @@ export function AddToList({ show, onDone, onCancel }: { show: TmdbTitle; onDone?
               },
               list,
             );
-            onDone?.();
+            onDone?.(list);
           }}
         />
       </View>

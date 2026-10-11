@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useStore } from '@/lib/store';
+import { LISTS, type ListName } from '@/lib/household';
 import type { Kind, TitleResult } from '@/lib/tmdb';
 import { useTitle } from '@/lib/use-tmdb';
 
@@ -11,15 +12,34 @@ import { AddToList } from './add-to-list';
 import { Loading, Poster } from './ui';
 
 /** The list picker under a result, once its details (and so the suggestion) have loaded. */
-function PickList({ kind, id, onClose }: { kind: Kind; id: number; onClose: () => void }) {
+function PickList({
+  kind,
+  id,
+  onDone,
+  onClose,
+}: {
+  kind: Kind;
+  id: number;
+  onDone: (list: ListName) => void;
+  onClose: () => void;
+}) {
   const { data: title, error } = useTitle(kind, id);
   if (error) return <Text style={{ color: Colors.end }}>{error}</Text>;
   if (!title) return <Loading />;
-  return <AddToList show={title} onDone={onClose} onCancel={onClose} />;
+  return <AddToList show={title} onDone={onDone} onCancel={onClose} />;
 }
 
 /** A show or movie in search results or suggestions, with an Add button that opens the list picker. */
-export function TitleRow({ title: r, note }: { title: TitleResult; note?: string }) {
+export function TitleRow({
+  title: r,
+  note,
+  onAdded,
+}: {
+  title: TitleResult;
+  note?: string;
+  /** Called with a short confirmation once the title is added. */
+  onAdded?: (message: string) => void;
+}) {
   const { household, find } = useStore();
   const [picking, setPicking] = useState(false);
   const added = !!find(r);
@@ -54,7 +74,17 @@ export function TitleRow({ title: r, note }: { title: TitleResult; note?: string
           <Text style={[styles.addText, added && { color: Colors.muted }]}>{added ? 'On list' : 'Add'}</Text>
         </Pressable>
       </View>
-      {picking && !added ? <PickList kind={r.kind} id={r.id} onClose={() => setPicking(false)} /> : null}
+      {picking && !added ? (
+        <PickList
+          kind={r.kind}
+          id={r.id}
+          onClose={() => setPicking(false)}
+          onDone={(list) => {
+            setPicking(false);
+            onAdded?.(`Added ${r.name} to ${LISTS.find((l) => l.key === list)?.label}.`);
+          }}
+        />
+      ) : null}
     </View>
   );
 }
