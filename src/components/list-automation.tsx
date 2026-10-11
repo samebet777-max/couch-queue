@@ -8,8 +8,8 @@ import { useTitles } from '@/lib/use-tmdb';
 /** Keeps the lists current: runs whenever the app opens and show details arrive. Renders nothing. */
 export function ListAutomation() {
   const { shows, patchShows } = useStore();
-  // Only shows that could change: everything in Waiting, plus anything the one-time tidy hasn't seen.
-  const candidates = shows.filter((s) => s.list === 'waiting' || !s.tidied);
+  // TV shows not marked Done (to notice new seasons), and movies waiting to come out.
+  const candidates = shows.filter((s) => (s.kind === 'movie' ? s.list === 'waiting' : s.list !== 'done'));
   const details = useTitles(candidates);
 
   useEffect(() => {

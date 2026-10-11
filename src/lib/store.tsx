@@ -206,7 +206,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 addedAt: existing && !existing.removed ? existing.addedAt : now,
                 updatedAt: now,
                 removed: false,
-                tidied: true,
                 waitingSince:
                   existing && !existing.removed ? existing.waitingSince : list === 'waiting' ? localDate() : undefined,
                 newEpisodes: existing && !existing.removed ? existing.newEpisodes : undefined,

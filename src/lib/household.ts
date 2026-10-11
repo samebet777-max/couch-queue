@@ -29,8 +29,10 @@ export type SavedShow = {
   waitingSince?: string;
   /** Moved to Watching because new episodes aired; cleared once someone opens the show. */
   newEpisodes?: boolean;
-  /** Already checked by the one-time tidy into Waiting. */
+  /** No longer used: marked shows checked by an old one-time tidy into Waiting. */
   tidied?: boolean;
+  /** Newest season the app has seen air, so a new season is flagged exactly once. */
+  seenSeason?: number;
 };
 
 /** Where an entry lives in `Household.shows`. TV shows keep their bare TMDB id so older entries still match. */
@@ -41,6 +43,15 @@ export function showKey(item: { id: number; kind?: 'tv' | 'movie' }) {
 /** Whether a show belongs on this member's list. */
 export function isFor(show: SavedShow, memberId: string | undefined) {
   return !show.watchers?.length || !memberId || show.watchers.includes(memberId);
+}
+
+/**
+ * Who a show belongs to, for the list filters: 'us' when everyone is tagged (or nobody is,
+ * which means everyone), otherwise the one person it's for. Each show lands in exactly one.
+ */
+export function ownerOf(show: SavedShow, members: Member[]): 'us' | string {
+  const on = members.filter((m) => isFor(show, m.id));
+  return on.length === 1 && members.length > 1 ? on[0].id : 'us';
 }
 
 /** How many seasons one member has finished for one show. */

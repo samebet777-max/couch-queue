@@ -11,6 +11,7 @@ export type Saved = {
   watchers?: string[];
   waitingSince?: string;
   newEpisodes?: boolean;
+  seenSeason?: number;
 };
 
 export type Household = {
@@ -20,7 +21,11 @@ export type Household = {
 };
 
 type Episode = { air_date: string | null; episode_number: number; season_number: number };
-export type TvDetails = { last_episode_to_air: Episode | null; next_episode_to_air: Episode | null };
+export type TvDetails = {
+  last_episode_to_air: Episode | null;
+  next_episode_to_air: Episode | null;
+  seasons?: { season_number: number; air_date: string | null }[];
+};
 export type MovieDetails = { release_date: string | null };
 
 export type Alert = {
@@ -75,18 +80,27 @@ export function alertsFor(
       continue;
     }
 
-    const { last_episode_to_air: last, next_episode_to_air: next } = d as TvDetails;
+    const { last_episode_to_air: last, next_episode_to_air: next, seasons } = d as TvDetails;
     const aired = last?.air_date;
+    const recent = (date: string | null | undefined): date is string =>
+      !!date && date <= today && daysBetween(date, today) <= RECENT_DAYS;
+    const tracking = saved.list === 'watching' || saved.list === 'waiting';
+    // A season whose first episode aired in the last few days, even if the app hasn't been opened.
+    const premiere = seasons?.find((x) => x.season_number === last?.season_number)?.air_date;
     const cameBack =
-      aired &&
-      aired <= today &&
-      daysBetween(aired, today) <= RECENT_DAYS &&
-      ((saved.list === 'waiting' && aired > since) || saved.newEpisodes);
+      last &&
+      recent(aired) &&
+      (saved.newEpisodes ||
+        (tracking &&
+          ((saved.list === 'waiting' && aired > since) ||
+            (saved.seenSeason !== undefined && last.season_number > saved.seenSeason) ||
+            recent(premiere))));
     if (cameBack && last) {
+      const first = last.season_number <= 1;
       add(
         `back:S${last.season_number}`,
-        `${saved.name} is back!`,
-        `New episodes of season ${last.season_number} are out. It’s on your Watching list.`,
+        first ? `${saved.name} has premiered!` : `${saved.name} is back!`,
+        `${first ? 'The first episodes are' : `New episodes of season ${last.season_number} are`} out. It’s on your Watching list.`,
       );
     }
 

@@ -5,7 +5,7 @@ import { ShowRow } from '@/components/show-row';
 import { Body, Chips, Heading, Notice, Screen } from '@/components/ui';
 import { Welcome } from '@/components/welcome';
 import { Colors, Spacing } from '@/constants/theme';
-import { LISTS, isFor, showKey, type ListName } from '@/lib/household';
+import { LISTS, ownerOf, showKey, type ListName } from '@/lib/household';
 import { sortList } from '@/lib/smart-lists';
 import { useStore } from '@/lib/store';
 import { hasTmdb } from '@/lib/tmdb';
@@ -14,7 +14,8 @@ import { useTitles } from '@/lib/use-tmdb';
 export default function ShowsScreen() {
   const { ready, household, shows, members, me } = useStore();
   const [list, setList] = useState<ListName>('watching');
-  const [scope, setScope] = useState<'mine' | 'all'>('mine');
+  // 'us' for shared shows, or a member id for shows only that person is on.
+  const [scope, setScope] = useState<string>('us');
   const details = useTitles(shows);
 
   if (!ready) return <Screen>{null}</Screen>;
@@ -27,17 +28,27 @@ export default function ShowsScreen() {
   }
 
   const shared = members.length > 1;
-  const mineOnly = shared && scope === 'mine';
+  // If the chosen person has left the list, fall back to shared shows.
+  const view = shared && (scope === 'us' || members.some((m) => m.id === scope)) ? scope : 'us';
   const visible = sortList(
     list,
-    shows.filter((s) => s.list === list && (!mineOnly || isFor(s, me?.id))),
+    shows.filter((s) => s.list === list && (!shared || ownerOf(s, members) === view)),
     details,
   );
+  const others = members.filter((m) => m.id !== me?.id);
+  // Each button shows how many shows it holds on the current list, so an empty one isn't a surprise.
+  const count = (key: string) => shows.filter((s) => s.list === list && ownerOf(s, members) === key).length;
+  const scopes = [
+    ...(me ? [{ key: me.id, label: `Just me (${count(me.id)})` }] : []),
+    { key: 'us', label: `${members.length > 2 ? 'All of us' : 'Both of us'} (${count('us')})` },
+    ...others.map((m) => ({ key: m.id, label: `${m.name} (${count(m.id)})` })),
+  ];
+  const heading = !shared || view === 'us' ? 'Our shows' : view === me?.id ? 'My shows' : `${members.find((m) => m.id === view)?.name}’s shows`;
 
   return (
     <Screen>
       <View style={styles.top}>
-        <Heading>{mineOnly ? 'My shows' : 'Our shows'}</Heading>
+        <Heading>{heading}</Heading>
         <View style={styles.avatars}>
           {members.map((m, i) => (
             <View key={m.id} style={[styles.avatar, { backgroundColor: Colors.members[i % Colors.members.length] }, i > 0 && { marginLeft: -8 }]}>
@@ -54,14 +65,7 @@ export default function ShowsScreen() {
       ) : null}
 
       {shared ? (
-        <Chips
-          options={[
-            { key: 'mine', label: 'Mine' },
-            { key: 'all', label: 'Everyone\u2019s' },
-          ]}
-          value={scope}
-          onChange={setScope}
-        />
+        <Chips options={scopes} value={view} onChange={setScope} />
       ) : null}
       <Chips options={LISTS} value={list} onChange={setList} />
 
