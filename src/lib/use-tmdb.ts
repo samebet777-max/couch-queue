@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { showKey } from './household';
-import { getPerson, getTitle, type Kind, type TmdbMovie, type TmdbPerson, type TmdbShow, type TmdbTitle } from './tmdb';
+import { getPerson, getRecommendations, getTitle, type Kind, type TmdbMovie, type TmdbPerson, type TmdbShow, type TitleResult, type TmdbTitle } from './tmdb';
 
 // Responses are cached for the session so lists and detail pages share one fetch.
 const cache = new Map<string, Promise<unknown>>();
@@ -69,4 +69,24 @@ export function useTitles(items: { id: number; kind?: Kind }[]) {
     };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return titles;
+}
+
+/** TMDB recommendations for several titles at once, keyed by showKey(). */
+export function useRecommendations(items: { id: number; kind?: Kind }[]) {
+  const [recs, setRecs] = useState<Record<string, TitleResult[] | Error>>({});
+  const key = items.map(showKey).join(',');
+  useEffect(() => {
+    let live = true;
+    items.forEach((item) => {
+      const kind = item.kind ?? 'tv';
+      const k = showKey(item);
+      cached(`recs:${kind}:${item.id}`, () => getRecommendations(kind, item.id))
+        .then((r) => live && setRecs((s) => ({ ...s, [k]: r })))
+        .catch((err: Error) => live && setRecs((s) => ({ ...s, [k]: err })));
+    });
+    return () => {
+      live = false;
+    };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return recs;
 }

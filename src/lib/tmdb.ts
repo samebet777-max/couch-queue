@@ -100,6 +100,7 @@ export type TitleResult = {
   date: string | null;
   poster_path: string | null;
   popularity: number;
+  votes: number;
 };
 
 export type PersonResult = { id: number; name: string; profile_path: string | null; knownFor: string[]; popularity: number };
@@ -126,6 +127,7 @@ const toTitle = (r: RawCredit): TitleResult => ({
   date: (r.media_type === 'movie' ? r.release_date : r.first_air_date) || null,
   poster_path: r.poster_path,
   popularity: r.popularity ?? 0,
+  votes: r.vote_count ?? 0,
 });
 
 export type TmdbPerson = {
@@ -216,6 +218,13 @@ export async function search(query: string) {
       popularity: r.popularity ?? 0,
     }));
   return { titles, people };
+}
+
+/** "People who liked this also liked": TMDB's recommendations for one show or movie, best first. */
+export async function getRecommendations(kind: Kind, id: number) {
+  const data = await get<{ results: RawCredit[] }>(`/${kind}/${id}/recommendations`);
+  // Recommendation results don't always say what they are; they match the title they came from.
+  return data.results.map((r) => toTitle({ ...r, media_type: r.media_type ?? kind }));
 }
 
 export function getPerson(id: number) {
