@@ -47,22 +47,23 @@ export function suggestList(show: TmdbTitle, today = localDate()): { list: ListN
   return { list: 'watching', reason: 'New episodes are airing.' };
 }
 
-/** The date a show went into Waiting; older records fall back to their last change. */
-function waitingSince(saved: SavedShow) {
-  return saved.waitingSince ?? localDate(new Date(saved.updatedAt));
+/** The date a show went into Waiting or Want to see; older records fall back to the day it was added. */
+function listedSince(saved: SavedShow) {
+  return saved.waitingSince ?? localDate(new Date(saved.addedAt));
 }
 
 /**
  * Changes the app makes on its own once show details load. Shows only ever move INTO Watching:
- * - a show whose new season has started gets a "New episodes!" tag, and moves to Watching
- *   if it was in Waiting (shows in Want to see or Done stay put);
+ * - a show in Waiting or Want to see moves to Watching with a "New episodes!" tag when an
+ *   episode airs after it went on that list, or a new season starts;
+ * - a show already in Watching gets the tag when a new season starts (Done stays put);
  * - a movie in Waiting moves to Watching on its release day.
  * seenSeason remembers the newest season the app has noticed, so each return is flagged once.
  */
 export function automaticChanges(saved: SavedShow, show: TmdbTitle, today = localDate()): Partial<SavedShow> | null {
   if (show.media === 'movie') {
     const out = show.release_date;
-    return saved.list === 'waiting' && out && out <= today && out > waitingSince(saved)
+    return saved.list === 'waiting' && out && out <= today && out > listedSince(saved)
       ? { list: 'watching', newEpisodes: true, waitingSince: undefined }
       : null;
   }
@@ -70,15 +71,15 @@ export function automaticChanges(saved: SavedShow, show: TmdbTitle, today = loca
   const last = show.last_episode_to_air;
   const aired = last?.air_date && last.air_date <= today ? last : null;
   const season = aired?.season_number ?? 0;
-  const tracking = saved.list === 'watching' || saved.list === 'waiting';
+  const parked = saved.list === 'waiting' || saved.list === 'want';
 
-  // Older entries: in Waiting since before the newest episode aired means it came back.
-  const backWhileWaiting = saved.list === 'waiting' && !!aired && aired.air_date! > waitingSince(saved);
+  // A new episode since it went into Waiting or Want to see means it's back.
+  const backWhileParked = parked && !!aired && aired.air_date! > listedSince(saved);
   // First look at this show: remember where it's at without flagging anything.
-  if (saved.seenSeason === undefined && !backWhileWaiting) return { seenSeason: season };
+  if (saved.seenSeason === undefined && !backWhileParked) return { seenSeason: season };
 
   const newSeason = saved.seenSeason !== undefined && season > saved.seenSeason;
-  if (tracking && (newSeason || backWhileWaiting)) {
+  if (saved.list !== 'done' && (newSeason || backWhileParked)) {
     return { list: 'watching', newEpisodes: true, waitingSince: undefined, seenSeason: season };
   }
   return newSeason ? { seenSeason: season } : null;

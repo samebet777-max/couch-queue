@@ -207,7 +207,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 updatedAt: now,
                 removed: false,
                 waitingSince:
-                  existing && !existing.removed ? existing.waitingSince : list === 'waiting' ? localDate() : undefined,
+                  existing && !existing.removed ? existing.waitingSince : list === 'waiting' || list === 'want' ? localDate() : undefined,
                 newEpisodes: existing && !existing.removed ? existing.newEpisodes : undefined,
                 // A new show is for whoever added it; they can add the other person on its page.
                 watchers: existing && !existing.removed ? existing.watchers : meId ? [meId] : undefined,
@@ -225,7 +225,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                   [key]: {
                     ...h.shows[key],
                     list,
-                    waitingSince: list === 'waiting' ? localDate() : undefined,
+                    waitingSince: list === 'waiting' || list === 'want' ? localDate() : undefined,
                     newEpisodes: undefined,
                     updatedAt: Date.now(),
                   },

@@ -25,7 +25,7 @@ export type SavedShow = {
   removed?: boolean;
   /** Who this show is for. Missing or empty means everyone in the household. */
   watchers?: string[];
-  /** Local date (YYYY-MM-DD) the show went into Waiting, so only episodes after it count as new. */
+  /** Local date (YYYY-MM-DD) the show went into Waiting or Want to see, so only episodes after it count as new. */
   waitingSince?: string;
   /** Moved to Watching because new episodes aired; cleared once someone opens the show. */
   newEpisodes?: boolean;

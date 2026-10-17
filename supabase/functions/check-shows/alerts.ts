@@ -6,6 +6,7 @@ export type Saved = {
   kind?: 'movie';
   name: string;
   list: 'watching' | 'waiting' | 'want' | 'done';
+  addedAt: number;
   updatedAt: number;
   removed?: boolean;
   watchers?: string[];
@@ -67,7 +68,8 @@ export function alertsFor(
     if (!d) continue;
     const members = saved.watchers?.length ? saved.watchers.filter((w) => everyone.includes(w)) : everyone;
     if (members.length === 0) continue;
-    const since = saved.waitingSince ?? new Date(saved.updatedAt).toISOString().slice(0, 10);
+    // When it went into Waiting or Want to see; older records fall back to the day it was added.
+    const since = saved.waitingSince ?? new Date(saved.addedAt).toISOString().slice(0, 10);
     const url = saved.kind === 'movie' ? `/movie/${saved.id}` : `/show/${saved.id}`;
     const add = (event: string, title: string, body: string) =>
       alerts.push({ showKey: key, event, members, title, body, url });
@@ -84,17 +86,16 @@ export function alertsFor(
     const aired = last?.air_date;
     const recent = (date: string | null | undefined): date is string =>
       !!date && date <= today && daysBetween(date, today) <= RECENT_DAYS;
-    const tracking = saved.list === 'watching' || saved.list === 'waiting';
+    const parked = saved.list === 'waiting' || saved.list === 'want';
     // A season whose first episode aired in the last few days, even if the app hasn't been opened.
     const premiere = seasons?.find((x) => x.season_number === last?.season_number)?.air_date;
     const cameBack =
       last &&
       recent(aired) &&
       (saved.newEpisodes ||
-        (tracking &&
-          ((saved.list === 'waiting' && aired > since) ||
-            (saved.seenSeason !== undefined && last.season_number > saved.seenSeason) ||
-            recent(premiere))));
+        (parked && aired > since) ||
+        (saved.seenSeason !== undefined && last.season_number > saved.seenSeason) ||
+        recent(premiere));
     if (cameBack && last) {
       const first = last.season_number <= 1;
       add(

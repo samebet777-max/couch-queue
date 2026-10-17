@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { showKey } from './household';
 import { getPerson, getRecommendations, getTitle, type Kind, type TmdbMovie, type TmdbPerson, type TmdbShow, type TitleResult, type TmdbTitle } from './tmdb';
 
-// Responses are cached for the session so lists and detail pages share one fetch.
-const cache = new Map<string, Promise<unknown>>();
+// Responses are cached so lists and detail pages share one fetch.
+const cache = new Map<string, { promise: Promise<unknown>; at: number }>();
 
 function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   if (!cache.has(key)) {
@@ -12,15 +12,48 @@ function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
       cache.delete(key);
       throw err;
     });
-    cache.set(key, promise);
+    cache.set(key, { promise, at: Date.now() });
   }
-  return cache.get(key) as Promise<T>;
+  return cache.get(key)!.promise as Promise<T>;
 }
+
+/** Show details older than this are fetched again when the app comes back to the front. */
+const FRESH_MS = 60 * 60 * 1000;
+// Home-screen apps can stay open for days, so without this a show's return would go unnoticed.
+let generation = 0;
+const listeners = new Set<() => void>();
+
+function refreshStale() {
+  const cutoff = Date.now() - FRESH_MS;
+  let dropped = false;
+  for (const [key, entry] of cache) {
+    if (entry.at < cutoff && (key.startsWith('show:') || key.startsWith('movie:'))) {
+      cache.delete(key);
+      dropped = true;
+    }
+  }
+  if (!dropped) return;
+  generation++;
+  listeners.forEach((l) => l());
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && refreshStale());
+}
+
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+
+/** Changes whenever stale show details were dropped, so hooks fetch them again. */
+const useGeneration = () => useSyncExternalStore(subscribe, () => generation, () => generation);
 
 type State<T> = { data?: T; error?: string; loading: boolean };
 
 function useCached<T>(key: string | null, load: () => Promise<T>): State<T> {
   const [state, setState] = useState<{ key: string | null; data?: T; error?: string }>({ key: null });
+  const fresh = useGeneration();
   useEffect(() => {
     if (key === null) return;
     let live = true;
@@ -30,7 +63,7 @@ function useCached<T>(key: string | null, load: () => Promise<T>): State<T> {
     return () => {
       live = false;
     };
-  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, fresh]); // eslint-disable-line react-hooks/exhaustive-deps
   if (key === null || state.key !== key) return { loading: key !== null };
   return { data: state.data, error: state.error, loading: false };
 }
@@ -55,6 +88,7 @@ export type TitleDetails = Record<string, TmdbTitle | Error>;
 export function useTitles(items: { id: number; kind?: Kind }[]) {
   const [titles, setTitles] = useState<TitleDetails>({});
   const key = items.map(showKey).join(',');
+  const fresh = useGeneration();
   useEffect(() => {
     let live = true;
     items.forEach((item) => {
@@ -67,7 +101,7 @@ export function useTitles(items: { id: number; kind?: Kind }[]) {
     return () => {
       live = false;
     };
-  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, fresh]); // eslint-disable-line react-hooks/exhaustive-deps
   return titles;
 }
 
