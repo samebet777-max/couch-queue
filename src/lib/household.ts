@@ -33,6 +33,8 @@ export type SavedShow = {
   tidied?: boolean;
   /** Newest season the app has seen air, so a new season is flagged exactly once. */
   seenSeason?: number;
+  /** The next episode the household will watch, shared by everyone. Missing means not tracked. */
+  upNext?: { season: number; episode: number };
 };
 
 /** Where an entry lives in `Household.shows`. TV shows keep their bare TMDB id so older entries still match. */

@@ -48,6 +48,7 @@ type Store = {
   moveShow: (key: string, list: ListName) => void;
   patchShows: (patches: Record<string, Partial<SavedShow>>) => void;
   markSeen: (key: string) => void;
+  setUpNext: (key: string, upNext: SavedShow['upNext']) => void;
   setWatchers: (key: string, memberIds: string[]) => void;
   removeMember: (memberId: string) => void;
   removeShow: (key: string) => void;
@@ -247,6 +248,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           h.shows[key]?.newEpisodes
             ? { ...h, shows: { ...h.shows, [key]: { ...h.shows[key], newEpisodes: undefined, updatedAt: Date.now() } } }
             : h,
+        ),
+      setUpNext: (key, upNext) =>
+        update((h) =>
+          h.shows[key] ? { ...h, shows: { ...h.shows, [key]: { ...h.shows[key], upNext, updatedAt: Date.now() } } } : h,
         ),
       setWatchers: (key, memberIds) =>
         update((h) =>

@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { episodeLabel, episodesLeft, isCaughtUp } from '@/lib/episodes';
 import { isFor, type SavedShow } from '@/lib/household';
 import { titleStatus } from '@/lib/next-season';
 import { useStore } from '@/lib/store';
@@ -17,6 +18,11 @@ export function ShowRow({ saved }: { saved: SavedShow }) {
   const seasonCount =
     show?.media === 'tv' ? realSeasons(show).filter((s) => s.air_date && new Date(s.air_date) <= new Date()).length : 0;
   const status = show ? titleStatus(show) : null;
+  const up = show?.media === 'tv' && saved.upNext ? saved.upNext : null;
+  const caughtUp = up && show?.media === 'tv' ? isCaughtUp(show, up) : false;
+  const left = up && show?.media === 'tv' ? episodesLeft(show, up) : 0;
+  // Count the new episodes only when you were caught up before they came out, so it never overstates.
+  const newCount = show?.media === 'tv' && left > 0 && left <= (show.last_episode_to_air?.episode_number ?? 0) ? left : 0;
 
   return (
     <Pressable
@@ -33,9 +39,16 @@ export function ShowRow({ saved }: { saved: SavedShow }) {
             {show ? subtitle(show, seasonCount) : error ? 'Details unavailable' : ' '}
           </Text>
           {saved.newEpisodes ? (
-            <Text style={styles.fresh}>{movie ? 'Out now!' : 'New episodes!'}</Text>
+            <Text style={styles.fresh}>
+              {movie ? 'Out now!' : newCount ? `${newCount} new episode${newCount === 1 ? '' : 's'}!` : 'New episodes!'}
+            </Text>
           ) : status ? (
             <Pill tone={status.tone}>{status.label}</Pill>
+          ) : null}
+          {up ? (
+            <Text style={styles.upNext} numberOfLines={1}>
+              {caughtUp ? 'All caught up' : <>Up next <Text style={styles.upNextEp}>{episodeLabel(up)}</Text></>}
+            </Text>
           ) : null}
           {seasonCount > 0 && members.length > 0 ? (
             <View style={{ gap: 3, marginTop: 2 }}>
@@ -74,6 +87,8 @@ const styles = StyleSheet.create({
   meta: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontWeight: '700', fontSize: 16, color: Colors.text },
   sub: { color: Colors.muted, fontSize: 12 },
+  upNext: { color: Colors.text, fontSize: 12 },
+  upNextEp: { fontFamily: Fonts.mono, fontWeight: '700' },
   fresh: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.lamp,

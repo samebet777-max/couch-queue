@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CastRow, ListControls, RemoveFromList, Reviews } from '@/components/title-parts';
 import { Body, Button, Label, Loading, Notice, Poster } from '@/components/ui';
+import { UpNextSection } from '@/components/up-next';
 import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { isFor } from '@/lib/household';
 import { nextSeason } from '@/lib/next-season';
@@ -96,6 +97,8 @@ export default function ShowScreen() {
             />
           ) : null}
         </View>
+
+        {saved ? <UpNextSection show={show} saved={saved} /> : null}
 
         <View style={[styles.callout, status.tone === 'end' && { borderColor: Colors.line, backgroundColor: Colors.sofa }]}>
           <Label>Next season</Label>
