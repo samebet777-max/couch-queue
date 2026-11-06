@@ -13,6 +13,7 @@ export type Saved = {
   waitingSince?: string;
   newEpisodes?: boolean;
   seenSeason?: number;
+  addedBy?: string;
 };
 
 export type Household = {
@@ -52,6 +53,42 @@ const daysBetween = (a: string, b: string) =>
 const pretty = (iso: string) =>
   new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
 
+/**
+ * The newest episode out by today. TMDB can take most of a day to move an episode from
+ * "next" to "last", so a next episode dated today or earlier counts as out.
+ */
+export function newestAired(d: TvDetails, today: string) {
+  const next = d.next_episode_to_air;
+  if (next?.air_date && next.air_date <= today) return next;
+  const last = d.last_episode_to_air;
+  return last?.air_date && last.air_date <= today ? last : null;
+}
+
+/** When a show went into Waiting or Want to see; older records fall back to the day it was added. */
+const listedSince = (saved: Saved) => saved.waitingSince ?? new Date(saved.addedAt).toISOString().slice(0, 10);
+
+/**
+ * The moves into Watching that the app makes when it opens (src/lib/smart-lists.ts,
+ * automaticChanges), done here too so a show moves on the next check even if nobody opens
+ * the app. Only ever moves INTO Watching. Returns null when nothing should change.
+ */
+export function moveFor(saved: Saved, d: TvDetails | MovieDetails, today: string): Partial<Saved> | null {
+  if (saved.removed || saved.list === 'done' || saved.list === 'watching') return null;
+  if (saved.kind === 'movie') {
+    const out = (d as MovieDetails).release_date;
+    return saved.list === 'waiting' && out && out <= today && out > listedSince(saved)
+      ? { list: 'watching', newEpisodes: true, waitingSince: undefined }
+      : null;
+  }
+  const aired = newestAired(d as TvDetails, today);
+  if (!aired?.air_date) return null;
+  const back = aired.air_date > listedSince(saved);
+  const newSeason = saved.seenSeason !== undefined && aired.season_number > saved.seenSeason;
+  return back || newSeason
+    ? { list: 'watching', newEpisodes: true, waitingSince: undefined, seenSeason: aired.season_number }
+    : null;
+}
+
 export function alertsFor(
   household: Household,
   details: (key: string, saved: Saved) => TvDetails | MovieDetails | undefined,
@@ -68,8 +105,7 @@ export function alertsFor(
     if (!d) continue;
     const members = saved.watchers?.length ? saved.watchers.filter((w) => everyone.includes(w)) : everyone;
     if (members.length === 0) continue;
-    // When it went into Waiting or Want to see; older records fall back to the day it was added.
-    const since = saved.waitingSince ?? new Date(saved.addedAt).toISOString().slice(0, 10);
+    const since = listedSince(saved);
     const url = saved.kind === 'movie' ? `/movie/${saved.id}` : `/show/${saved.id}`;
     const add = (event: string, title: string, body: string) =>
       alerts.push({ showKey: key, event, members, title, body, url });
@@ -82,7 +118,8 @@ export function alertsFor(
       continue;
     }
 
-    const { last_episode_to_air: last, next_episode_to_air: next, seasons } = d as TvDetails;
+    const { next_episode_to_air: next, seasons } = d as TvDetails;
+    const last = newestAired(d as TvDetails, today);
     const aired = last?.air_date;
     const recent = (date: string | null | undefined): date is string =>
       !!date && date <= today && daysBetween(date, today) <= RECENT_DAYS;

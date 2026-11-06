@@ -18,7 +18,7 @@ function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
 }
 
 /** Show details older than this are fetched again when the app comes back to the front. */
-const FRESH_MS = 60 * 60 * 1000;
+const FRESH_MS = 15 * 60 * 1000;
 // Home-screen apps can stay open for days, so without this a show's return would go unnoticed.
 let generation = 0;
 const listeners = new Set<() => void>();

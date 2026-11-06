@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { episodeLabel, episodesLeft, isCaughtUp } from '@/lib/episodes';
+import { episodeLabel, episodesLeft, isCaughtUp, newestAired } from '@/lib/episodes';
 import { isFor, type SavedShow } from '@/lib/household';
 import { titleStatus } from '@/lib/next-season';
 import { useStore } from '@/lib/store';
@@ -22,7 +22,7 @@ export function ShowRow({ saved }: { saved: SavedShow }) {
   const caughtUp = up && show?.media === 'tv' ? isCaughtUp(show, up) : false;
   const left = up && show?.media === 'tv' ? episodesLeft(show, up) : 0;
   // Count the new episodes only when you were caught up before they came out, so it never overstates.
-  const newCount = show?.media === 'tv' && left > 0 && left <= (show.last_episode_to_air?.episode_number ?? 0) ? left : 0;
+  const newCount = show?.media === 'tv' && left > 0 && left <= (newestAired(show)?.episode_number ?? 0) ? left : 0;
 
   return (
     <Pressable

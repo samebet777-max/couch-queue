@@ -2,15 +2,12 @@
 // shows move INTO Watching when they come back (or a movie comes out). Moving a show
 // out of Watching is always up to the people using the app.
 import { showKey, type ListName, type SavedShow } from './household';
+import { localDate } from './dates';
+import { newestAired } from './episodes';
 import type { TmdbMovie, TmdbShow, TmdbTitle } from './tmdb';
 import type { TitleDetails } from './use-tmdb';
 
-const pad = (n: number) => String(n).padStart(2, '0');
-
-/** Today's date in the viewer's time zone, as YYYY-MM-DD to compare with TMDB air dates. */
-export function localDate(d = new Date()) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+export { localDate };
 
 const ended = (show: TmdbShow) => show.status === 'Ended' || show.status === 'Canceled';
 
@@ -68,8 +65,7 @@ export function automaticChanges(saved: SavedShow, show: TmdbTitle, today = loca
       : null;
   }
 
-  const last = show.last_episode_to_air;
-  const aired = last?.air_date && last.air_date <= today ? last : null;
+  const aired = newestAired(show, today);
   const season = aired?.season_number ?? 0;
   const parked = saved.list === 'waiting' || saved.list === 'want';
 

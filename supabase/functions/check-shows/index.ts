@@ -8,7 +8,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
-import { alertsFor, dateIn, type Household, type MovieDetails, type Saved, type TvDetails } from './alerts.ts';
+import { alertsFor, dateIn, moveFor, type Household, type MovieDetails, type Saved, type TvDetails } from './alerts.ts';
 
 const TIME_ZONE = 'America/New_York';
 
@@ -80,6 +80,7 @@ async function checkAll() {
 
   const today = dateIn(TIME_ZONE);
   let sent = 0;
+  let moved = 0;
   for (const row of rows ?? []) {
     const household = row.data as Household;
     const shows = Object.values(household.shows ?? {}).filter((s) => !s.removed && s.list !== 'done');
@@ -101,8 +102,39 @@ async function checkAll() {
         }
       }
     }
+
+    moved += await moveShows(row.code, lookup, today);
   }
-  return { households: rows?.length ?? 0, titles: cache.size, sent, today };
+  return { households: rows?.length ?? 0, titles: cache.size, sent, moved, today };
+}
+
+/**
+ * Moves shows that came back into Watching, the same way the app does when it opens, so the
+ * lists are right even if nobody has opened the app. Reads the list fresh and writes only the
+ * changed shows through put_household, which keeps the newest version of each show.
+ */
+async function moveShows(
+  code: string,
+  lookup: (key: string, saved: Saved) => TvDetails | MovieDetails | undefined,
+  today: string,
+) {
+  const { data: fresh, error } = await db.from('households').select('data').eq('code', code).maybeSingle();
+  if (error || !fresh) return 0;
+  const shows: Record<string, Saved> = {};
+  for (const [key, saved] of Object.entries((fresh.data as Household).shows ?? {})) {
+    const d = lookup(key, saved);
+    const change = d ? moveFor(saved, d, today) : null;
+    if (change) shows[key] = { ...saved, ...change, updatedAt: Date.now() };
+  }
+  const count = Object.keys(shows).length;
+  if (count === 0) return 0;
+  // JSON drops the cleared waitingSince, as the app does.
+  const { error: putError } = await db.rpc('put_household', { p_code: code, p_data: { shows } });
+  if (putError) {
+    console.error('move failed', putError.message);
+    return 0;
+  }
+  return count;
 }
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type' };

@@ -1,14 +1,26 @@
 // "Up next": the next episode the household will watch, shared by everyone on the list.
 // It can point past the newest aired episode, which means you're all caught up.
+import { localDate } from './dates';
 import { realSeasons, type TmdbShow } from './tmdb';
 
 export type UpNext = { season: number; episode: number };
 
 const before = (a: UpNext, b: UpNext) => a.season < b.season || (a.season === b.season && a.episode < b.episode);
 
-/** How many episodes of a season have aired, going by TMDB's newest aired episode. */
-export function airedCount(show: TmdbShow, season: number) {
+/**
+ * The newest episode out by today. TMDB can take most of a day to move an episode from
+ * "next" to "last", so a next episode dated today or earlier counts as out.
+ */
+export function newestAired(show: TmdbShow, today = localDate()) {
+  const next = show.next_episode_to_air;
+  if (next?.air_date && next.air_date <= today) return next;
   const last = show.last_episode_to_air;
+  return last?.air_date && last.air_date <= today ? last : null;
+}
+
+/** How many episodes of a season have aired, going by the newest aired episode. */
+export function airedCount(show: TmdbShow, season: number) {
+  const last = newestAired(show);
   if (!last || season > last.season_number) return 0;
   if (season === last.season_number) return last.episode_number;
   return show.seasons.find((s) => s.season_number === season)?.episode_count ?? 0;
@@ -37,7 +49,7 @@ export function nextEpisode(show: TmdbShow, up: UpNext): UpNext {
 
 /** Where "up next" points once every aired episode is watched. */
 export function caughtUpPoint(show: TmdbShow): UpNext {
-  const last = show.last_episode_to_air;
+  const last = newestAired(show);
   if (!last) return { season: airedSeasons(show)[0] ?? 1, episode: 1 };
   return nextEpisode(show, { season: last.season_number, episode: last.episode_number });
 }
